@@ -39,3 +39,4 @@ CREATE TABLE IF NOT EXISTS categories (
 );
 
 CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
+-- Verificación de Issue #1 completada
