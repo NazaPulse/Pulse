@@ -1,0 +1,369 @@
+openapi: 3.0.3
+
+info:
+  title: Pulse API
+  description: |
+    Contrato REST oficial del sistema **Pulse**.
+
+    Esta especificación es la **única fuente de verdad** del contrato HTTP y debe
+    ser respetada al 100% por ambas implementaciones de backend (NestJS y FastAPI)
+    y consumida por ambos frontends (React y Vue.js).
+
+    ## Alcance de esta versión
+    Issue #2 — Documentación del contrato de **Autenticación y Autorización (Módulo 0)**:
+    - `POST /api/auth/register`
+    - `POST /api/auth/login`
+
+    La documentación interactiva (Swagger UI) se expone en la ruta `/api/docs` de
+    cada backend.
+  version: 0.2.0
+  contact:
+    name: Equipo Pulse
+    url: https://github.com/NazarenoMoreno1/Pulse
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Backend local — Implementación A (NestJS / TypeScript)
+  - url: http://localhost:8000
+    description: Backend local — Implementación B (FastAPI / Python)
+
+tags:
+  - name: Auth
+    description: Registro de usuarios y emisión de tokens de acceso JWT.
+
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      operationId: registerUser
+      summary: Registrar un nuevo usuario
+      security: []  # Endpoint público: no requiere token.
+      description: |
+        Crea una nueva cuenta de usuario.
+
+        **Reglas de negocio (RF-01):**
+        - El campo `email` debe ser único en la tabla `users`. Un email ya
+          registrado produce `400 Bad Request`.
+        - La contraseña recibida en texto plano **nunca** se persiste. El backend
+          deriva un hash con **Argon2id** y almacena únicamente ese hash en la
+          columna `users.password_hash`.
+        - La respuesta exitosa **no** incluye la contraseña ni el hash.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              registroValido:
+                summary: Registro válido
+                value:
+                  email: usuario@pulse.app
+                  password: S3gura-y-larga_2026!
+                  full_name: Ada Lovelace
+      responses:
+        '201':
+          description: Usuario creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+              examples:
+                creado:
+                  summary: Usuario recién creado
+                  value:
+                    id: 3f1a2b4c-5d6e-7f80-9a1b-2c3d4e5f6071
+                    email: usuario@pulse.app
+                    full_name: Ada Lovelace
+                    created_at: '2026-08-28T14:03:21.000Z'
+                    updated_at: '2026-08-28T14:03:21.000Z'
+        '400':
+          description: |
+            Solicitud inválida: fallo de validación de campos o email ya
+            registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emailDuplicado:
+                  summary: Email ya registrado
+                  value:
+                    statusCode: 400
+                    error: Bad Request
+                    message: El email ya se encuentra registrado.
+                validacion:
+                  summary: Error de validación de payload
+                  value:
+                    statusCode: 400
+                    error: Bad Request
+                    message:
+                      - 'email must be an email'
+                      - 'password must be longer than or equal to 12 characters'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      operationId: loginUser
+      summary: Autenticar un usuario y emitir un token de acceso
+      security: []  # Endpoint público: no requiere token.
+      description: |
+        Verifica las credenciales del usuario y, si son correctas, emite un
+        **token de acceso JWT** (RF-02).
+
+        **Proceso de verificación:**
+        1. Se busca el usuario por `email`.
+        2. Se verifica la contraseña recibida contra `users.password_hash`
+           usando la función de verificación de **Argon2id** (comparación en
+           tiempo constante provista por la librería).
+        3. Ante credenciales inválidas (email inexistente o contraseña
+           incorrecta) se responde `401 Unauthorized` con un mensaje genérico,
+           sin revelar cuál de los dos factores falló.
+
+        El token retornado debe enviarse en las rutas protegidas mediante el
+        header `Authorization: Bearer <access_token>` (RF-03).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              loginValido:
+                summary: Credenciales válidas
+                value:
+                  email: usuario@pulse.app
+                  password: S3gura-y-larga_2026!
+      responses:
+        '200':
+          description: Autenticación correcta. Se retorna el token de acceso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              examples:
+                ok:
+                  summary: Token emitido
+                  value:
+                    access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzZjFhMmI0Yy01ZDZlLTdmODAtOWExYi0yYzNkNGU1ZjYwNzEiLCJpYXQiOjE3NzI1NTU0MDEsImV4cCI6MTc3MjU1OTAwMX0.q7m0nS9nT3n2Yy8mS0dQ0vBv0f0m8bqkq2s8y4d1a2c
+        '400':
+          description: 'Solicitud inválida: el payload no cumple el esquema requerido.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validacion:
+                  summary: Campos faltantes o mal formados
+                  value:
+                    statusCode: 400
+                    error: Bad Request
+                    message:
+                      - 'email must be an email'
+                      - 'password should not be empty'
+        '401':
+          description: Credenciales inválidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidas:
+                  summary: Email o contraseña incorrectos
+                  value:
+                    statusCode: 401
+                    error: Unauthorized
+                    message: Credenciales inválidas.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token de acceso JWT emitido por `POST /api/auth/login`. Se envía en el
+        header `Authorization: Bearer <access_token>` en todas las rutas
+        protegidas (RF-03).
+
+  schemas:
+
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Email único del usuario. Se almacena en `users.email`.
+          example: usuario@pulse.app
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+          example: S3gura-y-larga_2026!
+          title: Contraseña en texto plano (solo entrada)
+          description: |
+            Contraseña en **texto plano**, enviada únicamente en el cuerpo de la
+            petición sobre HTTPS. El servidor la procesa en memoria y **jamás la
+            persiste ni la registra en logs**.
+
+            ### Estándar de encriptación obligatorio: Argon2id
+
+            El almacenamiento de contraseñas **debe** realizarse con la función
+            de derivación de clave **Argon2id**, variante híbrida de Argon2
+            (ganador del Password Hashing Competition, RFC 9106). Argon2id
+            combina la resistencia de Argon2i frente a ataques de canal lateral
+            (side-channel) con la resistencia de Argon2d frente a ataques con
+            hardware dedicado (GPU/ASIC/FPGA). Queda **prohibido** el uso de
+            MD5, SHA-1, SHA-256 «a secas», o cualquier hash sin factor de
+            trabajo configurable.
+
+            #### Parámetros mínimos de referencia (perfil OWASP)
+            | Parámetro | Símbolo | Valor mínimo |
+            |-----------|---------|--------------|
+            | Coste de memoria | `m` | 19456 KiB (19 MiB) |
+            | Iteraciones (coste de tiempo) | `t` | 2 |
+            | Grado de paralelismo | `p` | 1 |
+            | Longitud del hash | — | 32 bytes |
+            | Longitud del salt | — | 16 bytes, aleatorio por usuario (CSPRNG) |
+
+            Los parámetros pueden incrementarse según la capacidad del entorno,
+            nunca reducirse por debajo de estos valores.
+
+            #### Reglas de implementación
+            - El **salt** se genera de forma aleatoria y única por usuario con un
+              generador criptográficamente seguro; nunca se reutiliza.
+            - No se aplica «pepper» ni pre-hash adicional salvo que se gestione
+              como secreto fuera del repositorio (`.env`).
+            - El resultado se guarda en `users.password_hash`
+              (`VARCHAR(255)`) usando el **formato de cadena PHC** de Argon2,
+              que embebe algoritmo, versión y parámetros. Ejemplo:
+              `$argon2id$v=19$m=19456,t=2,p=1$<salt-b64>$<hash-b64>`
+            - La **verificación** en login usa la función `verify` de la librería
+              (comparación en tiempo constante). Si la cadena almacenada tiene
+              parámetros por debajo de la política vigente, se re-calcula el
+              hash de forma transparente tras un login exitoso (rehash on login).
+            - Librerías recomendadas: `argon2` (node, binding a `libargon2`) para
+              la Implementación A y `argon2-cffi` para la Implementación B. Ambas
+              deben producir y aceptar el mismo formato PHC.
+        full_name:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Nombre completo del usuario. Opcional. Se almacena en `users.full_name`.
+          example: Ada Lovelace
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: usuario@pulse.app
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 128
+          example: S3gura-y-larga_2026!
+          description: |
+            Contraseña en texto plano a verificar. El backend la compara contra
+            `users.password_hash` mediante la función de verificación de
+            **Argon2id**; no se almacena ni se registra.
+
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - access_token
+      properties:
+        access_token:
+          type: string
+          description: |
+            Token de acceso JWT firmado. Se debe enviar en las rutas protegidas
+            como `Authorization: Bearer <access_token>`.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzZjFhMmI0Yy01ZDZlLTdmODAtOWExYi0yYzNkNGU1ZjYwNzEiLCJpYXQiOjE3NzI1NTU0MDEsImV4cCI6MTc3MjU1OTAwMX0.q7m0nS9nT3n2Yy8mS0dQ0vBv0f0m8bqkq2s8y4d1a2c
+
+    UserPublic:
+      type: object
+      description: |
+        Representación pública de un usuario. **Nunca** expone `password_hash`
+        ni ningún dato sensible.
+      additionalProperties: false
+      required:
+        - id
+        - email
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador único (`users.id`).
+          example: 3f1a2b4c-5d6e-7f80-9a1b-2c3d4e5f6071
+        email:
+          type: string
+          format: email
+          example: usuario@pulse.app
+        full_name:
+          type: string
+          nullable: true
+          example: Ada Lovelace
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-08-28T14:03:21.000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-08-28T14:03:21.000Z'
+
+    ErrorResponse:
+      type: object
+      description: |
+        Estructura de error uniforme para toda la API. Compatible con el formato
+        de excepción por defecto de NestJS; la Implementación B (FastAPI) debe
+        emitir el mismo contrato.
+      additionalProperties: false
+      required:
+        - statusCode
+        - message
+      properties:
+        statusCode:
+          type: integer
+          description: Código de estado HTTP repetido en el cuerpo.
+          enum: [400, 401]
+          example: 400
+        error:
+          type: string
+          description: Nombre canónico del estado HTTP.
+          example: Bad Request
+        message:
+          description: |
+            Descripción del error. Es un `string` para errores de negocio
+            (p. ej. credenciales inválidas) o un arreglo de `string` cuando
+            provienen de la validación de múltiples campos del payload.
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+          example: Credenciales inválidas.
