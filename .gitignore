@@ -1,0 +1,17 @@
+# Entornos virtuales de Python
+.venv/
+venv/
+
+# Cache de Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Dependencias y artefactos de build de Node
+node_modules/
+dist/
+build/
+
+# Variables de entorno
+.env
+.env.local
