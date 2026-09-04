@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+/* Reset ligero adicional al de Tailwind Preflight */
+html,
+body,
+#app {
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
