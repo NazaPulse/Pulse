@@ -6,13 +6,15 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from app.api.accounts import router as accounts_router
 from app.api.auth import router as auth_router
+from app.api.categories import router as categories_router
 from app.errors import register_exception_handlers
 
 app = FastAPI(
     title="Pulse API",
     description="Backend B (FastAPI). Contrato: openapi.yaml en la raíz del repo.",
-    version="0.2.0",
+    version="0.3.0",
     docs_url="/api/docs",
     redoc_url=None,
     openapi_url="/api/openapi.json",
@@ -20,6 +22,8 @@ app = FastAPI(
 
 register_exception_handlers(app)
 app.include_router(auth_router)
+app.include_router(accounts_router)
+app.include_router(categories_router)
 
 
 @app.get("/health", include_in_schema=False)
