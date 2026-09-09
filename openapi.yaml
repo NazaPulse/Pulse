@@ -14,9 +14,17 @@ info:
     - `POST /api/auth/register`
     - `POST /api/auth/login`
 
+    Issue #7 — Documentación del contrato del **Módulo de Finanzas** (Cuentas y
+    Sobres/Categorías). Todas las rutas de este módulo requieren un token JWT
+    válido (`bearerAuth`):
+    - `GET/POST /api/accounts`
+    - `GET/PUT/DELETE /api/accounts/{id}`
+    - `GET/POST /api/categories`
+    - `GET/PUT/DELETE /api/categories/{id}`
+
     La documentación interactiva (Swagger UI) se expone en la ruta `/api/docs` de
     cada backend.
-  version: 0.2.0
+  version: 0.3.0
   contact:
     name: Equipo Pulse
     url: https://github.com/NazarenoMoreno1/Pulse
@@ -33,6 +41,10 @@ servers:
 tags:
   - name: Auth
     description: Registro de usuarios y emisión de tokens de acceso JWT.
+  - name: Accounts
+    description: Gestión de cuentas financieras del usuario (banco, billetera virtual o efectivo).
+  - name: Categories
+    description: Gestión de categorías/sobres presupuestarios (envelope budgeting).
 
 paths:
   /api/auth/register:
@@ -180,6 +192,316 @@ paths:
                     error: Unauthorized
                     message: Credenciales inválidas.
 
+  /api/accounts:
+    get:
+      tags:
+        - Accounts
+      operationId: listAccounts
+      summary: Listar las cuentas financieras del usuario autenticado
+      security:
+        - bearerAuth: []
+      description: |
+        Retorna todas las cuentas (`accounts`) que pertenecen al usuario
+        autenticado, identificado a partir del `sub` del JWT.
+      responses:
+        '200':
+          description: Listado de cuentas del usuario.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+              examples:
+                listado:
+                  summary: Dos cuentas registradas
+                  value:
+                    - id: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+                      name: Cuenta Corriente Santander
+                      type: bank
+                      balance: 15230.5
+                      created_at: '2026-08-28T14:03:21.000Z'
+                      updated_at: '2026-08-28T14:03:21.000Z'
+                    - id: 9a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9
+                      name: Efectivo
+                      type: cash
+                      balance: 800
+                      created_at: '2026-08-28T14:05:10.000Z'
+                      updated_at: '2026-08-28T14:05:10.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Accounts
+      operationId: createAccount
+      summary: Crear una nueva cuenta financiera
+      security:
+        - bearerAuth: []
+      description: |
+        Crea una nueva cuenta (`accounts`) asociada al usuario autenticado.
+        El campo `balance` inicial de la cuenta creada es igual a
+        `initial_balance`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountCreateRequest'
+            examples:
+              cuentaValida:
+                summary: Alta de cuenta bancaria
+                value:
+                  name: Cuenta Corriente Santander
+                  type: bank
+                  initial_balance: 15230.5
+      responses:
+        '201':
+          description: Cuenta creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+              examples:
+                creada:
+                  summary: Cuenta recién creada
+                  value:
+                    id: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+                    name: Cuenta Corriente Santander
+                    type: bank
+                    balance: 15230.5
+                    created_at: '2026-08-28T14:03:21.000Z'
+                    updated_at: '2026-08-28T14:03:21.000Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/accounts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    get:
+      tags:
+        - Accounts
+      operationId: getAccountById
+      summary: Obtener una cuenta financiera por id
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cuenta encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Accounts
+      operationId: updateAccount
+      summary: Actualizar una cuenta financiera existente
+      security:
+        - bearerAuth: []
+      description: |
+        Reemplaza `name` y `type` de la cuenta. El `balance` **no** se edita
+        de forma manual: se recalcula a partir de las transacciones asociadas
+        a la cuenta.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountUpdateRequest'
+            examples:
+              actualizacion:
+                summary: Renombrar cuenta
+                value:
+                  name: Cuenta Corriente (Santander)
+                  type: bank
+      responses:
+        '200':
+          description: Cuenta actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Accounts
+      operationId: deleteAccount
+      summary: Eliminar una cuenta financiera
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Cuenta eliminada correctamente. No retorna contenido.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/categories:
+    get:
+      tags:
+        - Categories
+      operationId: listCategories
+      summary: Listar las categorías/sobres del usuario autenticado
+      security:
+        - bearerAuth: []
+      description: |
+        Retorna todas las categorías/sobres (`categories`) del usuario
+        autenticado, identificado a partir del `sub` del JWT.
+      responses:
+        '200':
+          description: Listado de categorías/sobres del usuario.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+              examples:
+                listado:
+                  summary: Dos sobres registrados
+                  value:
+                    - id: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+                      name: Supermercado
+                      target_amount: 500
+                      color: '#FF5733'
+                      icon: shopping-cart
+                      created_at: '2026-08-28T14:06:00.000Z'
+                      updated_at: '2026-08-28T14:06:00.000Z'
+                    - id: 5e6f7081-9203-4415-a627-b8d9c0e1f2a3
+                      name: Transporte
+                      target_amount: 150
+                      color: '#3498DB'
+                      icon: bus
+                      created_at: '2026-08-28T14:07:00.000Z'
+                      updated_at: '2026-08-28T14:07:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Categories
+      operationId: createCategory
+      summary: Crear una nueva categoría/sobre
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreateRequest'
+            examples:
+              sobreValido:
+                summary: Alta de sobre de presupuesto
+                value:
+                  name: Supermercado
+                  target_amount: 500
+                  color: '#FF5733'
+                  icon: shopping-cart
+      responses:
+        '201':
+          description: Categoría/sobre creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+              examples:
+                creada:
+                  summary: Sobre recién creado
+                  value:
+                    id: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+                    name: Supermercado
+                    target_amount: 500
+                    color: '#FF5733'
+                    icon: shopping-cart
+                    created_at: '2026-08-28T14:06:00.000Z'
+                    updated_at: '2026-08-28T14:06:00.000Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/categories/{id}:
+    parameters:
+      - $ref: '#/components/parameters/CategoryId'
+    get:
+      tags:
+        - Categories
+      operationId: getCategoryById
+      summary: Obtener una categoría/sobre por id
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Categoría/sobre encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Categories
+      operationId: updateCategory
+      summary: Actualizar una categoría/sobre existente
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateRequest'
+            examples:
+              actualizacion:
+                summary: Ajustar monto objetivo del sobre
+                value:
+                  name: Supermercado
+                  target_amount: 600
+                  color: '#FF5733'
+                  icon: shopping-cart
+      responses:
+        '200':
+          description: Categoría/sobre actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Categories
+      operationId: deleteCategory
+      summary: Eliminar una categoría/sobre
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Categoría/sobre eliminado correctamente. No retorna contenido.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -190,6 +512,69 @@ components:
         Token de acceso JWT emitido por `POST /api/auth/login`. Se envía en el
         header `Authorization: Bearer <access_token>` en todas las rutas
         protegidas (RF-03).
+
+  parameters:
+    AccountId:
+      name: id
+      in: path
+      required: true
+      description: Identificador único de la cuenta (`accounts.id`).
+      schema:
+        type: string
+        format: uuid
+      example: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+    CategoryId:
+      name: id
+      in: path
+      required: true
+      description: Identificador único de la categoría/sobre (`categories.id`).
+      schema:
+        type: string
+        format: uuid
+      example: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+
+  responses:
+    BadRequest:
+      description: 'Solicitud inválida: fallo de validación de campos del payload.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validacion:
+              summary: Error de validación de payload
+              value:
+                statusCode: 400
+                error: Bad Request
+                message:
+                  - 'name should not be empty'
+                  - 'type must be one of the following values: bank, wallet, cash'
+    Unauthorized:
+      description: No se proporcionó un token válido o el token expiró.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            sinToken:
+              summary: Token faltante o inválido
+              value:
+                statusCode: 401
+                error: Unauthorized
+                message: Unauthorized
+    NotFound:
+      description: El recurso solicitado no existe o no pertenece al usuario autenticado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            noEncontrado:
+              summary: Recurso no encontrado
+              value:
+                statusCode: 404
+                error: Not Found
+                message: Recurso no encontrado.
 
   schemas:
 
@@ -336,6 +721,194 @@ components:
           format: date-time
           example: '2026-08-28T14:03:21.000Z'
 
+    Account:
+      type: object
+      description: |
+        Representación pública de una cuenta financiera del usuario (banco,
+        billetera virtual o efectivo). Se almacena en la tabla `accounts`.
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - type
+        - balance
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador único (`accounts.id`).
+          example: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+        name:
+          type: string
+          maxLength: 100
+          description: Nombre visible de la cuenta. Se almacena en `accounts.name`.
+          example: Cuenta Corriente Santander
+        type:
+          type: string
+          enum: [bank, wallet, cash]
+          description: Tipo de cuenta. Se almacena en `accounts.type`.
+          example: bank
+        balance:
+          type: number
+          format: float
+          description: |
+            Saldo actual de la cuenta (`accounts.balance`). Se calcula a partir
+            de `initial_balance` y el neto de las transacciones asociadas.
+          example: 15230.5
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-08-28T14:03:21.000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-08-28T14:03:21.000Z'
+
+    AccountCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          example: Cuenta Corriente Santander
+        type:
+          type: string
+          enum: [bank, wallet, cash]
+          example: bank
+        initial_balance:
+          type: number
+          format: float
+          default: 0
+          description: |
+            Saldo inicial de la cuenta al momento de crearla (`accounts.initial_balance`).
+            Se usa como base para calcular `balance`.
+          example: 15230.5
+
+    AccountUpdateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          example: Cuenta Corriente (Santander)
+        type:
+          type: string
+          enum: [bank, wallet, cash]
+          example: bank
+
+    Category:
+      type: object
+      description: |
+        Representación pública de una categoría/sobre presupuestario (envelope
+        budgeting). Se almacena en la tabla `categories`.
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - target_amount
+        - color
+        - icon
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador único (`categories.id`).
+          example: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+        name:
+          type: string
+          maxLength: 100
+          description: Nombre visible del sobre. Se almacena en `categories.name`.
+          example: Supermercado
+        target_amount:
+          type: number
+          format: float
+          description: |
+            Monto objetivo (presupuesto) asignado al sobre para el período
+            vigente. Se almacena en `categories.target_amount`.
+          example: 500
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          description: Color identificador del sobre en formato hexadecimal.
+          example: '#FF5733'
+        icon:
+          type: string
+          maxLength: 50
+          description: |
+            Identificador del ícono asociado, correspondiente a un set de
+            íconos del frontend (p. ej. `shopping-cart`, `bus`).
+          example: shopping-cart
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-08-28T14:06:00.000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-08-28T14:06:00.000Z'
+
+    CategoryCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - target_amount
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          example: Supermercado
+        target_amount:
+          type: number
+          format: float
+          example: 500
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#FF5733'
+        icon:
+          type: string
+          maxLength: 50
+          example: shopping-cart
+
+    CategoryUpdateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - target_amount
+        - color
+        - icon
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          example: Supermercado
+        target_amount:
+          type: number
+          format: float
+          example: 600
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#FF5733'
+        icon:
+          type: string
+          maxLength: 50
+          example: shopping-cart
+
     ErrorResponse:
       type: object
       description: |
@@ -350,7 +923,7 @@ components:
         statusCode:
           type: integer
           description: Código de estado HTTP repetido en el cuerpo.
-          enum: [400, 401]
+          enum: [400, 401, 404]
           example: 400
         error:
           type: string
