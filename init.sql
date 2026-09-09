@@ -34,9 +34,14 @@ CREATE TABLE IF NOT EXISTS categories (
     name            VARCHAR(255) NOT NULL,
     monthly_limit   NUMERIC(14,2) NOT NULL DEFAULT 0,
     color           VARCHAR(20),
+    icon            VARCHAR(50),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Issue #8: agrega `icon` para bases ya provisionadas antes de este cambio
+-- (los scripts de init de Postgres solo corren una vez, en un volumen nuevo).
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon VARCHAR(50);
 
 CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
 -- Verificación de Issue #1 completada
