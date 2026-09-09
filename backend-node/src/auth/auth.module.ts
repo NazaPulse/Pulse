@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Argon2HashingService } from './hashing/argon2-hashing.service';
 import { HashingService } from './hashing/hashing.service';
 
@@ -33,7 +34,11 @@ import { HashingService } from './hashing/hashing.service';
   providers: [
     AuthService,
     { provide: HashingService, useClass: Argon2HashingService },
+    JwtAuthGuard,
   ],
-  exports: [AuthService],
+  // `JwtModule` y `JwtAuthGuard` se re-exportan para que los módulos de
+  // Finanzas (Accounts, Categories) puedan proteger sus rutas con
+  // `@UseGuards(JwtAuthGuard)` importando únicamente `AuthModule`.
+  exports: [AuthService, JwtModule, JwtAuthGuard],
 })
 export class AuthModule {}
