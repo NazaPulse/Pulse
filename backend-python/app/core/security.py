@@ -20,3 +20,10 @@ def create_access_token(*, sub: str, email: str) -> str:
         "exp": int((now + dt.timedelta(seconds=s.jwt_expires_in_seconds)).timestamp()),
     }
     return jwt.encode(payload, s.jwt_secret, algorithm=s.jwt_algorithm)
+
+
+def decode_access_token(token: str) -> dict:
+    """Verifica firma y expiración. Lanza `jwt.PyJWTError` si el token es
+    inválido o expiró (capturado por `get_current_user` -> `401`)."""
+    s = get_settings()
+    return jwt.decode(token, s.jwt_secret, algorithms=[s.jwt_algorithm])
