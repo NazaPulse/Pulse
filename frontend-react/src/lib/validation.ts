@@ -21,3 +21,17 @@ export function isValidPassword(value: string): boolean {
 export function isNonEmpty(value: string): boolean {
   return value.trim().length > 0
 }
+
+// Reglas de validación alineadas con openapi.yaml (Account/Category).
+export const NAME_MAX_LENGTH = 100
+export const ICON_MAX_LENGTH = 50
+export const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/
+
+export function isValidName(value: string): boolean {
+  const v = value.trim()
+  return v.length > 0 && v.length <= NAME_MAX_LENGTH
+}
+
+export function isValidHexColor(value: string): boolean {
+  return HEX_COLOR_RE.test(value.trim())
+}
