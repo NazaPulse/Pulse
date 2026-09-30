@@ -22,9 +22,15 @@ info:
     - `GET/POST /api/categories`
     - `GET/PUT/DELETE /api/categories/{id}`
 
+    Issue #12 — Documentación del contrato de **Transacciones (Movimientos)** y
+    **Resumen Financiero**. Todas las rutas requieren un token JWT válido
+    (`bearerAuth`):
+    - `GET/POST /api/transactions`
+    - `GET /api/finances/summary`
+
     La documentación interactiva (Swagger UI) se expone en la ruta `/api/docs` de
     cada backend.
-  version: 0.3.0
+  version: 0.4.0
   contact:
     name: Equipo Pulse
     url: https://github.com/NazarenoMoreno1/Pulse
@@ -45,6 +51,10 @@ tags:
     description: Gestión de cuentas financieras del usuario (banco, billetera virtual o efectivo).
   - name: Categories
     description: Gestión de categorías/sobres presupuestarios (envelope budgeting).
+  - name: Transactions
+    description: Registro y consulta de movimientos de dinero (ingresos y egresos).
+  - name: Finances
+    description: Métricas financieras agregadas para el tablero y gráficos.
 
 paths:
   /api/auth/register:
@@ -502,6 +512,190 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/transactions:
+    get:
+      tags:
+        - Transactions
+      operationId: listTransactions
+      summary: Listar el historial de transacciones del usuario autenticado
+      description: |
+        Devuelve las transacciones que pertenecen al usuario autenticado,
+        ordenadas por `date` descendente. Los filtros opcionales se combinan
+        con AND lógico.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: account_id
+          in: query
+          required: false
+          description: Filtra por cuenta (`transactions.account_id`).
+          schema:
+            type: string
+            format: uuid
+          example: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+        - name: category_id
+          in: query
+          required: false
+          description: Filtra por categoría/sobre (`transactions.category_id`).
+          schema:
+            type: string
+            format: uuid
+          example: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+        - name: type
+          in: query
+          required: false
+          description: Filtra por tipo de movimiento.
+          schema:
+            type: string
+            enum: [income, expense]
+          example: expense
+      responses:
+        '200':
+          description: Listado de transacciones del usuario autenticado.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+              examples:
+                historial:
+                  summary: Historial con un ingreso y un egreso
+                  value:
+                    - id: 9a8b7c6d-5e4f-4a3b-9c2d-1e0f2a3b4c5d
+                      amount: 120.75
+                      type: expense
+                      account_id: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+                      category_id: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+                      date: '2026-09-02T18:30:00.000Z'
+                      description: Compra semanal
+                      created_at: '2026-09-02T18:31:00.000Z'
+                      updated_at: '2026-09-02T18:31:00.000Z'
+                    - id: 1b2c3d4e-5f60-4718-8293-a4b5c6d7e8f9
+                      amount: 3500
+                      type: income
+                      account_id: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+                      category_id: null
+                      date: '2026-09-01T12:00:00.000Z'
+                      description: Sueldo
+                      created_at: '2026-09-01T12:01:00.000Z'
+                      updated_at: '2026-09-01T12:01:00.000Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Transactions
+      operationId: createTransaction
+      summary: Registrar un movimiento de dinero
+      description: |
+        Registra un ingreso (`income`) o egreso (`expense`) sobre una cuenta del
+        usuario autenticado y actualiza el `balance` de dicha cuenta.
+
+        **Reglas de negocio:**
+        - `amount` debe ser estrictamente mayor a 0; el signo lo determina `type`.
+        - `category_id` es **obligatorio** cuando `type = expense` y **opcional**
+          cuando `type = income`. Si falta en un egreso se responde `400`.
+        - `account_id` y `category_id` deben existir y pertenecer al usuario
+          autenticado; en caso contrario se responde `404`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreateRequest'
+            examples:
+              egreso:
+                summary: Egreso imputado a un sobre
+                value:
+                  amount: 120.75
+                  type: expense
+                  account_id: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+                  category_id: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+                  date: '2026-09-02T18:30:00.000Z'
+                  description: Compra semanal
+              ingreso:
+                summary: Ingreso sin categoría
+                value:
+                  amount: 3500
+                  type: income
+                  account_id: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+                  date: '2026-09-01T12:00:00.000Z'
+                  description: Sueldo
+      responses:
+        '201':
+          description: Transacción registrada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+              examples:
+                creada:
+                  summary: Egreso recién registrado
+                  value:
+                    id: 9a8b7c6d-5e4f-4a3b-9c2d-1e0f2a3b4c5d
+                    amount: 120.75
+                    type: expense
+                    account_id: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+                    category_id: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+                    date: '2026-09-02T18:30:00.000Z'
+                    description: Compra semanal
+                    created_at: '2026-09-02T18:31:00.000Z'
+                    updated_at: '2026-09-02T18:31:00.000Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/finances/summary:
+    get:
+      tags:
+        - Finances
+      operationId: getFinancesSummary
+      summary: Obtener el resumen financiero del usuario autenticado
+      description: |
+        Devuelve métricas agregadas para el tablero y los gráficos:
+        - `total_balance`: suma de `balance` de todas las cuentas del usuario.
+        - `total_income` / `total_expenses`: totales acumulados de transacciones.
+        - `by_category`: egresos agrupados por categoría/sobre, con su
+          porcentaje sobre `total_expenses`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Resumen financiero calculado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancesSummary'
+              examples:
+                resumen:
+                  summary: Resumen con dos sobres
+                  value:
+                    total_balance: 18609.75
+                    total_income: 3500
+                    total_expenses: 200
+                    by_category:
+                      - category_id: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+                        category_name: Supermercado
+                        icon: shopping-cart
+                        color: '#FF5733'
+                        total_amount: 150
+                        percentage: 75
+                      - category_id: 5e6f7081-9203-4415-a627-b8d9c0e1f2a3
+                        category_name: Transporte
+                        icon: bus
+                        color: '#3498DB'
+                        total_amount: 50
+                        percentage: 25
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -908,6 +1102,185 @@ components:
           type: string
           maxLength: 50
           example: shopping-cart
+
+    Transaction:
+      type: object
+      description: |
+        Representación pública de un movimiento de dinero (ingreso o egreso).
+        Se almacena en la tabla `transactions`.
+      additionalProperties: false
+      required:
+        - id
+        - amount
+        - type
+        - account_id
+        - category_id
+        - date
+        - description
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador único (`transactions.id`).
+          example: 9a8b7c6d-5e4f-4a3b-9c2d-1e0f2a3b4c5d
+        amount:
+          type: number
+          format: float
+          minimum: 0
+          exclusiveMinimum: true
+          description: Monto del movimiento, siempre positivo (`transactions.amount`).
+          example: 120.75
+        type:
+          type: string
+          enum: [income, expense]
+          description: Tipo de movimiento (`transactions.type`).
+          example: expense
+        account_id:
+          type: string
+          format: uuid
+          description: Cuenta afectada (`transactions.account_id`).
+          example: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Categoría/sobre imputado (`transactions.category_id`). Siempre
+            presente en egresos; puede ser `null` en ingresos.
+          example: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+        date:
+          type: string
+          format: date-time
+          description: Fecha y hora efectiva del movimiento (`transactions.date`).
+          example: '2026-09-02T18:30:00.000Z'
+        description:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Descripción libre del movimiento (`transactions.description`).
+          example: Compra semanal
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T18:31:00.000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T18:31:00.000Z'
+
+    TransactionCreateRequest:
+      type: object
+      description: |
+        Payload de alta de una transacción. `category_id` es obligatorio cuando
+        `type = expense` y opcional cuando `type = income` (validación de
+        negocio: si falta en un egreso se responde `400`).
+      additionalProperties: false
+      required:
+        - amount
+        - type
+        - account_id
+        - date
+      properties:
+        amount:
+          type: number
+          format: float
+          minimum: 0
+          exclusiveMinimum: true
+          example: 120.75
+        type:
+          type: string
+          enum: [income, expense]
+          example: expense
+        account_id:
+          type: string
+          format: uuid
+          example: 7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f
+        category_id:
+          type: string
+          format: uuid
+          description: Obligatorio si `type = expense`; opcional si `type = income`.
+          example: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+        date:
+          type: string
+          format: date-time
+          example: '2026-09-02T18:30:00.000Z'
+        description:
+          type: string
+          maxLength: 255
+          example: Compra semanal
+
+    CategorySummary:
+      type: object
+      description: Total de egresos agregado para una categoría/sobre.
+      additionalProperties: false
+      required:
+        - category_id
+        - category_name
+        - icon
+        - color
+        - total_amount
+        - percentage
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          example: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+        category_name:
+          type: string
+          maxLength: 100
+          example: Supermercado
+        icon:
+          type: string
+          maxLength: 50
+          example: shopping-cart
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#FF5733'
+        total_amount:
+          type: number
+          format: float
+          description: Suma de egresos imputados a la categoría.
+          example: 150
+        percentage:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Porcentaje de `total_amount` sobre `total_expenses` (0–100).
+          example: 75
+
+    FinancesSummary:
+      type: object
+      description: Métricas financieras agregadas del usuario autenticado.
+      additionalProperties: false
+      required:
+        - total_balance
+        - total_income
+        - total_expenses
+        - by_category
+      properties:
+        total_balance:
+          type: number
+          format: float
+          description: Suma de los saldos (`balance`) de todas las cuentas.
+          example: 18609.75
+        total_income:
+          type: number
+          format: float
+          description: Total acumulado de transacciones `income`.
+          example: 3500
+        total_expenses:
+          type: number
+          format: float
+          description: Total acumulado de transacciones `expense`.
+          example: 200
+        by_category:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategorySummary'
 
     ErrorResponse:
       type: object
