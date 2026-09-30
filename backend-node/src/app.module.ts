@@ -6,6 +6,9 @@ import { AccountsModule } from './accounts/accounts.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { Category } from './categories/category.entity';
+import { FinancesModule } from './finances/finances.module';
+import { Transaction } from './transactions/transaction.entity';
+import { TransactionsModule } from './transactions/transactions.module';
 import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
 
@@ -24,7 +27,7 @@ import { UsersModule } from './users/users.module';
         username: config.get<string>('DB_USER', 'pulse'),
         password: config.get<string>('DB_PASSWORD', 'pulse'),
         database: config.get<string>('DB_NAME', 'pulse'),
-        entities: [User, Account, Category],
+        entities: [User, Account, Category, Transaction],
         // El esquema es propiedad de init.sql (única fuente de verdad).
         // El backend NO sincroniza ni migra la base.
         synchronize: false,
@@ -35,6 +38,8 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     AccountsModule,
     CategoriesModule,
+    TransactionsModule,
+    FinancesModule,
   ],
 })
 export class AppModule {}
