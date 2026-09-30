@@ -21,7 +21,7 @@ async function bootstrap(): Promise<void> {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Pulse API')
     .setDescription('Backend A (NestJS). Contrato: openapi.yaml en la raíz del repo.')
-    .setVersion('0.3.0')
+    .setVersion('0.4.0')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
