@@ -8,19 +8,32 @@ import { Alert } from '../components/Alert'
 import { CategoryFormModal } from '../components/CategoryFormModal'
 import { CategoryList } from '../components/CategoryList'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { ExpenseDonutChart, SummaryCards } from '../components/FinanceCharts'
 import { Spinner } from '../components/Spinner'
+import { TransactionFormModal } from '../components/TransactionFormModal'
+import { TransactionHistory } from '../components/TransactionHistory'
 import {
   createAccount,
   createCategory,
+  createTransaction,
   deleteAccount,
   deleteCategory,
   extractErrorMessage,
   getAccounts,
   getCategories,
+  getFinanceSummary,
+  getTransactions,
   updateAccount,
   updateCategory,
 } from '../lib/api'
-import type { Account, AccountType, Category } from '../lib/types'
+import type {
+  Account,
+  AccountType,
+  Category,
+  CreateTransactionDTO,
+  FinanceSummary,
+  Transaction,
+} from '../lib/types'
 
 type DeleteTarget =
   | { kind: 'account'; account: Account }
@@ -32,24 +45,32 @@ export function DashboardPage() {
 
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [summary, setSummary] = useState<FinanceSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   const [accountModal, setAccountModal] = useState<{ account?: Account | null } | null>(null)
   const [categoryModal, setCategoryModal] = useState<{ category?: Category | null } | null>(null)
+  const [transactionModalOpen, setTransactionModalOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Recarga cuentas, sobres, historial y resumen juntos: cualquier alta o
+  // baja impacta saldos y métricas. El spinner solo se muestra en la carga inicial.
   const loadData = useCallback(async () => {
-    setLoading(true)
     setLoadError(null)
     try {
-      const [accountsData, categoriesData] = await Promise.all([
+      const [accountsData, categoriesData, transactionsData, summaryData] = await Promise.all([
         getAccounts(),
         getCategories(),
+        getTransactions(),
+        getFinanceSummary(),
       ])
       setAccounts(accountsData)
       setCategories(categoriesData)
+      setTransactions(transactionsData)
+      setSummary(summaryData)
     } catch (err) {
       setLoadError(extractErrorMessage(err, 'No se pudieron cargar tus datos financieros.'))
     } finally {
@@ -95,6 +116,12 @@ export function DashboardPage() {
     await loadData()
   }
 
+  async function handleTransactionSubmit(values: CreateTransactionDTO) {
+    await createTransaction(values)
+    setTransactionModalOpen(false)
+    await loadData()
+  }
+
   async function handleConfirmDelete() {
     if (!deleteTarget) return
     setDeleting(true)
@@ -116,7 +143,7 @@ export function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-100 pb-16">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
               P
@@ -133,12 +160,12 @@ export function DashboardPage() {
         </div>
       </header>
 
-      <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
           Panel financiero
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Gestioná tus cuentas y sobres de presupuesto.
+          Tus métricas, cuentas, sobres de presupuesto y movimientos.
         </p>
 
         {loadError ? (
@@ -153,7 +180,17 @@ export function DashboardPage() {
           </div>
         ) : (
           <>
-            <div className="mt-8">
+            {summary ? (
+              <div className="mt-8 flex flex-col gap-4">
+                <SummaryCards summary={summary} />
+                <div>
+                  <h2 className="mb-3 text-lg font-semibold text-slate-900">Egresos por sobre</h2>
+                  <ExpenseDonutChart summary={summary} />
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-10">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-900">Cuentas</h2>
                 <button
@@ -188,6 +225,24 @@ export function DashboardPage() {
                 onDelete={(category) => setDeleteTarget({ kind: 'category', category })}
               />
             </div>
+
+            <div className="mt-10">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900">Historial de movimientos</h2>
+                <button
+                  type="button"
+                  onClick={() => setTransactionModalOpen(true)}
+                  className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                >
+                  + Nueva transacción
+                </button>
+              </div>
+              <TransactionHistory
+                transactions={transactions}
+                accounts={accounts}
+                categories={categories}
+              />
+            </div>
           </>
         )}
       </section>
@@ -205,6 +260,15 @@ export function DashboardPage() {
           category={categoryModal.category}
           onClose={() => setCategoryModal(null)}
           onSubmit={handleCategorySubmit}
+        />
+      ) : null}
+
+      {transactionModalOpen ? (
+        <TransactionFormModal
+          accounts={accounts}
+          categories={categories}
+          onClose={() => setTransactionModalOpen(false)}
+          onSubmit={handleTransactionSubmit}
         />
       ) : null}
 
