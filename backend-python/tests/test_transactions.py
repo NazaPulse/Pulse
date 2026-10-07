@@ -124,6 +124,16 @@ def test_income_without_category_is_valid(client, token_for, stub_services):
     assert r.json()["category_id"] is None
 
 
+def test_income_with_explicit_null_category_returns_400_like_node(client, token_for, stub_services):
+    # `@ValidateIf(... category_id !== undefined)` valida un `null` explícito.
+    _, token = token_for()
+    body = {"amount": 3500, "type": "income", "account_id": ACCOUNT_ID,
+            "category_id": None, "date": "2026-09-01T12:00:00.000Z"}
+    r = client.post("/api/transactions", json=body, headers=auth_headers(token))
+    assert r.status_code == 400
+    assert r.json()["message"] == ["category_id must be a UUID (required for expense)"]
+
+
 def test_expense_without_category_returns_400(client, token_for, stub_services):
     _, token = token_for()
     body = {k: v for k, v in EXPENSE.items() if k != "category_id"}

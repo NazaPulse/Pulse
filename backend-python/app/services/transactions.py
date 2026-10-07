@@ -96,10 +96,13 @@ class TransactionsService:
                     raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
                 category_id = category.id
 
-            amount = decimal.Decimal(str(dto.amount)).quantize(_CENT)
+            # Node compara el saldo contra el monto sin redondear y deja que
+            # PostgreSQL (NUMERIC(14,2), half-up) redondee al persistir.
+            raw_amount = decimal.Decimal(str(dto.amount))
+            amount = raw_amount.quantize(_CENT, rounding=decimal.ROUND_HALF_UP)
             balance = decimal.Decimal(account.balance)
             if dto.type == TransactionType.EXPENSE:
-                if balance < amount:
+                if balance < raw_amount:
                     raise HTTPException(status_code=400, detail=INSUFFICIENT_FUNDS_MESSAGE)
                 account.balance = balance - amount
             else:

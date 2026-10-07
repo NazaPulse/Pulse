@@ -119,8 +119,9 @@ class TransactionCreateRequest(BaseModel):
     @model_validator(mode="after")
     def _category_rule(self) -> "TransactionCreateRequest":
         # En egresos siempre se valida (y por lo tanto es obligatorio); en
-        # ingresos solo si viene informado. Igual que `@ValidateIf` en Node.
-        if self.type == TransactionType.EXPENSE or self.category_id is not None:
+        # ingresos solo si viene informado. Igual que `@ValidateIf` en Node,
+        # que compara contra `undefined`: un `null` explícito también se valida.
+        if self.type == TransactionType.EXPENSE or "category_id" in self.model_fields_set:
             if not is_uuid(self.category_id):
                 raise _fail(
                     "category_id_uuid", "category_id must be a UUID (required for expense)"
