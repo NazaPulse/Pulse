@@ -13,6 +13,9 @@ const props = defineProps<{
   disabled?: boolean
   required?: boolean
   maxlength?: number
+  step?: string
+  min?: string
+  inputmode?: 'decimal' | 'numeric' | 'text'
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -52,6 +55,9 @@ function onInput(event: Event) {
       :disabled="disabled"
       :required="required"
       :maxlength="maxlength"
+      :step="step"
+      :min="min"
+      :inputmode="inputmode"
       :aria-invalid="Boolean(error)"
       :aria-describedby="describedBy"
       :class="inputClass"
