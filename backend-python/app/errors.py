@@ -38,6 +38,28 @@ _MISSING_EXPANSION: dict[tuple[str, str], list[str]] = {
         "password should not be empty",
         "password must be a string",
     ],
+    ("/api/transactions", "amount"): [
+        "amount must be greater than 0",
+        "amount must be a number conforming to the specified constraints",
+    ],
+    ("/api/transactions", "type"): [
+        "type must be one of the following values: income, expense",
+    ],
+    ("/api/transactions", "account_id"): ["account_id must be a UUID"],
+    ("/api/transactions", "date"): ["date must be a valid ISO 8601 date string"],
+}
+
+# Errores de tipo en los que `class-validator` también reporta el resto de los
+# validadores del campo (todos fallan sobre un valor del tipo equivocado).
+_TYPE_ERROR_EXPANSION: dict[str, list[str]] = {
+    "amount_number": [
+        "amount must be greater than 0",
+        "amount must be a number conforming to the specified constraints",
+    ],
+    "description_string": [
+        "description must be shorter than or equal to 255 characters",
+        "description must be a string",
+    ],
 }
 
 # Prioridad de ordenamiento cuando un mismo campo acumula varios errores.
@@ -116,11 +138,17 @@ def _translate_validation(path: str, errors: list[dict]) -> list[str]:
             ),
         )
         for e in ordered:
+            expansion = _TYPE_ERROR_EXPANSION.get(e.get("type", ""))
+            if expansion:
+                messages.extend(expansion)
+                continue
             msg = _single_message(field, e)
             if msg:
                 messages.append(msg)
 
-    messages.extend(extras)
+    # Igual que `ValidationPipe(forbidNonWhitelisted)`: las propiedades no
+    # declaradas se reportan antes que los validadores de cada campo.
+    messages = extras + messages
     return messages or ["Solicitud inválida."]
 
 
