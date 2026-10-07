@@ -7,10 +7,14 @@ import type {
   Category,
   CategoryCreateRequest,
   CategoryUpdateRequest,
+  CreateTransactionDTO,
   ErrorResponse,
+  FinanceSummary,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
+  Transaction,
+  TransactionFilters,
   UserPublic,
 } from './types'
 
@@ -84,6 +88,27 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string): Promise<void> {
   await http.delete(`/api/categories/${id}`)
+}
+
+// ── Transacciones y Resumen ─────────────────────────────────
+
+export async function getTransactions(params?: TransactionFilters): Promise<Transaction[]> {
+  // Se omiten los filtros vacíos: el backend rechaza query params inválidos.
+  const query = Object.fromEntries(
+    Object.entries(params ?? {}).filter(([, value]) => Boolean(value)),
+  )
+  const { data } = await http.get<Transaction[]>('/api/transactions', { params: query })
+  return data
+}
+
+export async function createTransaction(payload: CreateTransactionDTO): Promise<Transaction> {
+  const { data } = await http.post<Transaction>('/api/transactions', payload)
+  return data
+}
+
+export async function getFinanceSummary(): Promise<FinanceSummary> {
+  const { data } = await http.get<FinanceSummary>('/api/finances/summary')
+  return data
 }
 
 /**

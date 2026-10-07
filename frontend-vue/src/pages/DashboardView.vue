@@ -9,25 +9,40 @@ import Alert from '../components/Alert.vue'
 import CategoryFormModal from '../components/CategoryFormModal.vue'
 import CategoryList from '../components/CategoryList.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import FinanceCharts from '../components/FinanceCharts.vue'
 import Spinner from '../components/Spinner.vue'
+import TransactionFormModal from '../components/TransactionFormModal.vue'
+import TransactionHistory from '../components/TransactionHistory.vue'
 import {
   createAccount,
   createCategory,
+  createTransaction,
   deleteAccount,
   deleteCategory,
   extractErrorMessage,
   getAccounts,
   getCategories,
+  getFinanceSummary,
+  getTransactions,
   updateAccount,
   updateCategory,
 } from '../lib/api'
-import type { Account, AccountType, Category } from '../lib/types'
+import type {
+  Account,
+  AccountType,
+  Category,
+  CreateTransactionDTO,
+  FinanceSummary,
+  Transaction,
+} from '../lib/types'
 
 const router = useRouter()
 const { logout } = useAuth()
 
 const accounts = ref<Account[]>([])
 const categories = ref<Category[]>([])
+const transactions = ref<Transaction[]>([])
+const summary = ref<FinanceSummary | null>(null)
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 
@@ -35,6 +50,7 @@ const accountModalOpen = ref(false)
 const editingAccount = ref<Account | null>(null)
 const categoryModalOpen = ref(false)
 const editingCategory = ref<Category | null>(null)
+const transactionModalOpen = ref(false)
 
 type DeleteTarget =
   | { kind: 'account'; account: Account }
@@ -42,13 +58,21 @@ type DeleteTarget =
 const deleteTarget = ref<DeleteTarget | null>(null)
 const deleting = ref(false)
 
+// Recarga cuentas, sobres, historial y resumen juntos: cualquier alta o
+// baja impacta saldos y métricas. El spinner solo se muestra en la carga inicial.
 async function loadData() {
-  loading.value = true
   loadError.value = null
   try {
-    const [accountsData, categoriesData] = await Promise.all([getAccounts(), getCategories()])
+    const [accountsData, categoriesData, transactionsData, summaryData] = await Promise.all([
+      getAccounts(),
+      getCategories(),
+      getTransactions(),
+      getFinanceSummary(),
+    ])
     accounts.value = accountsData
     categories.value = categoriesData
+    transactions.value = transactionsData
+    summary.value = summaryData
   } catch (err) {
     loadError.value = extractErrorMessage(err, 'No se pudieron cargar tus datos financieros.')
   } finally {
@@ -122,6 +146,12 @@ async function handleCategorySubmit(values: {
   await loadData()
 }
 
+async function handleTransactionSubmit(values: CreateTransactionDTO) {
+  await createTransaction(values)
+  transactionModalOpen.value = false
+  await loadData()
+}
+
 function askDeleteAccount(account: Account) {
   deleteTarget.value = { kind: 'account', account }
 }
@@ -154,7 +184,7 @@ async function handleConfirmDelete() {
 <template>
   <main class="min-h-screen bg-slate-100 pb-16">
     <header class="border-b border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
+      <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
         <div class="flex items-center gap-2">
           <div
             class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white"
@@ -173,9 +203,9 @@ async function handleConfirmDelete() {
       </div>
     </header>
 
-    <section class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+    <section class="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Panel financiero</h1>
-      <p class="mt-1 text-sm text-slate-500">Gestioná tus cuentas y sobres de presupuesto.</p>
+      <p class="mt-1 text-sm text-slate-500">Tus métricas, cuentas, sobres de presupuesto y movimientos.</p>
 
       <div v-if="loadError" class="mt-6">
         <Alert variant="error">{{ loadError }}</Alert>
@@ -186,7 +216,11 @@ async function handleConfirmDelete() {
       </div>
 
       <template v-else>
-        <div class="mt-8">
+        <div v-if="summary" class="mt-8">
+          <FinanceCharts :summary="summary" />
+        </div>
+
+        <div class="mt-10">
           <div class="mb-3 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-slate-900">Cuentas</h2>
             <button
@@ -221,6 +255,24 @@ async function handleConfirmDelete() {
             @remove="askDeleteCategory"
           />
         </div>
+
+        <div class="mt-10">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-900">Historial de movimientos</h2>
+            <button
+              type="button"
+              class="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+              @click="transactionModalOpen = true"
+            >
+              + Nueva transacción
+            </button>
+          </div>
+          <TransactionHistory
+            :transactions="transactions"
+            :accounts="accounts"
+            :categories="categories"
+          />
+        </div>
       </template>
     </section>
 
@@ -236,6 +288,14 @@ async function handleConfirmDelete() {
       :category="editingCategory"
       :on-submit="handleCategorySubmit"
       @close="closeCategoryModal"
+    />
+
+    <TransactionFormModal
+      v-if="transactionModalOpen"
+      :accounts="accounts"
+      :categories="categories"
+      :on-submit="handleTransactionSubmit"
+      @close="transactionModalOpen = false"
     />
 
     <ConfirmDialog
