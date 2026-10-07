@@ -28,9 +28,18 @@ info:
     - `GET/POST /api/transactions`
     - `GET /api/finances/summary`
 
+    **Tareas (To-Do)** y **Notas Multimedia** (con subida de audio). Todas las
+    rutas requieren un token JWT válido (`bearerAuth`) y operan solo sobre
+    los recursos del usuario autenticado:
+    - `GET/POST /api/tasks`
+    - `GET/PATCH/DELETE /api/tasks/{id}`
+    - `GET/POST /api/notes`
+    - `GET/PUT/DELETE /api/notes/{id}`
+    - `POST /api/notes/upload-audio` (`multipart/form-data`)
+
     La documentación interactiva (Swagger UI) se expone en la ruta `/api/docs` de
     cada backend.
-  version: 0.4.0
+  version: 0.5.0
   contact:
     name: Equipo Pulse
     url: https://github.com/NazarenoMoreno1/Pulse
@@ -55,6 +64,10 @@ tags:
     description: Registro y consulta de movimientos de dinero (ingresos y egresos).
   - name: Finances
     description: Métricas financieras agregadas para el tablero y gráficos.
+  - name: Tasks
+    description: Gestión de tareas (To-Do) del usuario con prioridad, estado y vencimiento.
+  - name: Notes
+    description: Gestión de notas multimedia del usuario (texto y notas de voz).
 
 paths:
   /api/auth/register:
@@ -696,6 +709,331 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/tasks:
+    get:
+      tags:
+        - Tasks
+      operationId: listTasks
+      summary: Listar las tareas del usuario autenticado
+      description: |
+        Devuelve las tareas que pertenecen al usuario autenticado. Los filtros
+        opcionales se combinan con AND lógico.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filtra por estado de la tarea.
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+          example: pending
+        - name: priority
+          in: query
+          required: false
+          description: Filtra por prioridad de la tarea.
+          schema:
+            $ref: '#/components/schemas/TaskPriority'
+          example: high
+      responses:
+        '200':
+          description: Listado de tareas del usuario autenticado.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Tasks
+      operationId: createTask
+      summary: Crear una nueva tarea
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskDTO'
+            examples:
+              tarea:
+                summary: Tarea con prioridad alta y vencimiento
+                value:
+                  title: Pagar la tarjeta de crédito
+                  description: Vence el resumen de septiembre
+                  priority: high
+                  due_date: '2026-10-10T23:59:00.000Z'
+      responses:
+        '201':
+          description: Tarea creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/tasks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags:
+        - Tasks
+      operationId: getTaskById
+      summary: Obtener una tarea por id
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tarea encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+        - Tasks
+      operationId: updateTask
+      summary: Actualizar parcialmente una tarea existente
+      description: |
+        Edición parcial: solo se modifican los campos enviados. Debe enviarse
+        al menos un campo. Enviar `description` o `due_date` en `null` los
+        elimina.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskDTO'
+            examples:
+              completar:
+                summary: Marcar una tarea como completada
+                value:
+                  status: completed
+      responses:
+        '200':
+          description: Tarea actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Tasks
+      operationId: deleteTask
+      summary: Eliminar una tarea
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Tarea eliminada correctamente. No retorna contenido.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/notes:
+    get:
+      tags:
+        - Notes
+      operationId: listNotes
+      summary: Listar las notas del usuario autenticado
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Listado de notas del usuario autenticado.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Notes
+      operationId: createNote
+      summary: Crear una nota (texto y/o audio)
+      description: |
+        Para adjuntar una nota de voz, primero se sube el archivo con
+        `POST /api/notes/upload-audio` y luego se envía la `audio_url`
+        devuelta en este payload.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoteDTO'
+            examples:
+              texto:
+                summary: Nota de texto
+                value:
+                  title: Ideas de ahorro
+                  content: Revisar suscripciones mensuales.
+              audio:
+                summary: Nota con audio adjunto
+                value:
+                  title: Recordatorio de voz
+                  audio_url: /uploads/audio/5f1c2d3e-4a5b-4c6d-8e9f-0a1b2c3d4e5f.webm
+      responses:
+        '201':
+          description: Nota creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notes/upload-audio:
+    post:
+      tags:
+        - Notes
+      operationId: uploadNoteAudio
+      summary: Subir un archivo de voz para adjuntar a una nota
+      description: |
+        Recibe un archivo de audio por `multipart/form-data` y devuelve la
+        `audio_url` generada, que luego se envía en `CreateNoteDTO` o
+        `UpdateNoteDTO`. Formatos aceptados: `audio/webm`, `audio/mpeg`
+        (mp3), `audio/wav`, `audio/ogg`. Tamaño máximo: 10 MB.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Archivo de audio a subir.
+            encoding:
+              file:
+                contentType: audio/webm, audio/mpeg, audio/wav, audio/ogg
+      responses:
+        '201':
+          description: Archivo subido correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioUploadResponse'
+        '400':
+          description: 'Archivo ausente, formato no soportado o tamaño mayor a 10 MB.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                formatoInvalido:
+                  summary: Formato de archivo no soportado
+                  value:
+                    statusCode: 400
+                    error: Bad Request
+                    message: Formato de audio no soportado.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/NoteId'
+    get:
+      tags:
+        - Notes
+      operationId: getNoteById
+      summary: Obtener una nota por id
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Nota encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Notes
+      operationId: updateNote
+      summary: Actualizar una nota existente
+      description: |
+        Reemplazo total: `title` es obligatorio; `content` y `audio_url`
+        omitidos o en `null` quedan vacíos.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNoteDTO'
+            examples:
+              actualizacion:
+                summary: Editar el texto de una nota
+                value:
+                  title: Ideas de ahorro
+                  content: Revisar suscripciones y cambiar de plan de celular.
+      responses:
+        '200':
+          description: Nota actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Notes
+      operationId: deleteNote
+      summary: Eliminar una nota
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Nota eliminada correctamente. No retorna contenido.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -726,6 +1064,24 @@ components:
         type: string
         format: uuid
       example: 3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b
+    TaskId:
+      name: id
+      in: path
+      required: true
+      description: Identificador único de la tarea (`tasks.id`).
+      schema:
+        type: string
+        format: uuid
+      example: 1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9
+    NoteId:
+      name: id
+      in: path
+      required: true
+      description: Identificador único de la nota (`notes.id`).
+      schema:
+        type: string
+        format: uuid
+      example: 9f8e7d6c-5b4a-4392-8170-6f5e4d3c2b1a
 
   responses:
     BadRequest:
@@ -1281,6 +1637,239 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CategorySummary'
+
+    TaskPriority:
+      type: string
+      enum: [low, medium, high]
+      description: Prioridad de la tarea.
+      example: medium
+
+    TaskStatus:
+      type: string
+      enum: [pending, completed]
+      description: Estado de la tarea.
+      example: pending
+
+    Task:
+      type: object
+      description: |
+        Representación pública de una tarea (To-Do) del usuario. Se almacena
+        en la tabla `tasks`.
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - description
+        - priority
+        - status
+        - due_date
+        - user_id
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador único (`tasks.id`).
+          example: 1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9
+        title:
+          type: string
+          maxLength: 200
+          example: Pagar la tarjeta de crédito
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Detalle opcional. `null` si no se informó.
+          example: Vence el resumen de septiembre
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: Fecha de vencimiento opcional. `null` si no se informó.
+          example: '2026-10-10T23:59:00.000Z'
+        user_id:
+          type: string
+          format: uuid
+          description: Usuario propietario (`tasks.user_id`).
+          example: 2f1e0d9c-8b7a-4695-8483-726150493827
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-10-07T12:00:00.000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-10-07T12:00:00.000Z'
+
+    CreateTaskDTO:
+      type: object
+      description: Payload de alta de una tarea. `user_id` se toma del JWT.
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Pagar la tarjeta de crédito
+        description:
+          type: string
+          maxLength: 1000
+          example: Vence el resumen de septiembre
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/TaskPriority'
+          default: medium
+        status:
+          allOf:
+            - $ref: '#/components/schemas/TaskStatus'
+          default: pending
+        due_date:
+          type: string
+          format: date-time
+          example: '2026-10-10T23:59:00.000Z'
+
+    UpdateTaskDTO:
+      type: object
+      description: |
+        Payload de edición parcial (`PATCH`). Todos los campos son opcionales
+        pero debe enviarse al menos uno.
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Pagar la tarjeta de crédito
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          example: Vence el resumen de septiembre
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-10-10T23:59:00.000Z'
+
+    Note:
+      type: object
+      description: |
+        Representación pública de una nota multimedia (texto y/o audio) del
+        usuario. Se almacena en la tabla `notes`.
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - content
+        - audio_url
+        - user_id
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador único (`notes.id`).
+          example: 9f8e7d6c-5b4a-4392-8170-6f5e4d3c2b1a
+        title:
+          type: string
+          maxLength: 200
+          example: Ideas de ahorro
+        content:
+          type: string
+          nullable: true
+          description: Texto opcional de la nota. `null` si no se informó.
+          example: Revisar suscripciones mensuales.
+        audio_url:
+          type: string
+          nullable: true
+          maxLength: 2048
+          description: |
+            URL o path del archivo de voz devuelto por
+            `POST /api/notes/upload-audio`. `null` si la nota no tiene audio.
+          example: /uploads/audio/5f1c2d3e-4a5b-4c6d-8e9f-0a1b2c3d4e5f.webm
+        user_id:
+          type: string
+          format: uuid
+          description: Usuario propietario (`notes.user_id`).
+          example: 2f1e0d9c-8b7a-4695-8483-726150493827
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-10-07T12:00:00.000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-10-07T12:00:00.000Z'
+
+    CreateNoteDTO:
+      type: object
+      description: Payload de alta de una nota. `user_id` se toma del JWT.
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Ideas de ahorro
+        content:
+          type: string
+          example: Revisar suscripciones mensuales.
+        audio_url:
+          type: string
+          maxLength: 2048
+          example: /uploads/audio/5f1c2d3e-4a5b-4c6d-8e9f-0a1b2c3d4e5f.webm
+
+    UpdateNoteDTO:
+      type: object
+      description: |
+        Payload de `PUT /api/notes/{id}` (reemplazo total). `content` y
+        `audio_url` omitidos o en `null` quedan vacíos.
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Ideas de ahorro
+        content:
+          type: string
+          nullable: true
+          example: Revisar suscripciones y cambiar de plan de celular.
+        audio_url:
+          type: string
+          nullable: true
+          maxLength: 2048
+          example: /uploads/audio/5f1c2d3e-4a5b-4c6d-8e9f-0a1b2c3d4e5f.webm
+
+    AudioUploadResponse:
+      type: object
+      description: Resultado de `POST /api/notes/upload-audio`.
+      additionalProperties: false
+      required:
+        - audio_url
+      properties:
+        audio_url:
+          type: string
+          maxLength: 2048
+          description: URL o path del archivo subido, para adjuntar a una nota.
+          example: /uploads/audio/5f1c2d3e-4a5b-4c6d-8e9f-0a1b2c3d4e5f.webm
 
     ErrorResponse:
       type: object
