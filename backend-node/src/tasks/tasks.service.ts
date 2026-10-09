@@ -52,10 +52,12 @@ export class TasksService {
     }
 
     const task = await this.findOwnedOrFail(userId, id);
-    if (dto.title !== undefined) task.title = dto.title;
+    // `title`/`priority`/`status` son NOT NULL: un `null` explícito se ignora
+    // (`@IsOptional` lo deja pasar la validación). Igual que el Backend B.
+    if (dto.title !== undefined && dto.title !== null) task.title = dto.title;
     if (dto.description !== undefined) task.description = dto.description;
-    if (dto.priority !== undefined) task.priority = dto.priority;
-    if (dto.status !== undefined) task.status = dto.status;
+    if (dto.priority !== undefined && dto.priority !== null) task.priority = dto.priority;
+    if (dto.status !== undefined && dto.status !== null) task.status = dto.status;
     if (dto.due_date !== undefined) {
       task.dueDate = dto.due_date === null ? null : new Date(dto.due_date);
     }
