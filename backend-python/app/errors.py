@@ -16,6 +16,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+_TITLE_MESSAGES = [
+    "title must be shorter than or equal to 200 characters",
+    "title must be longer than or equal to 1 characters",
+    "title must be a string",
+]
+
 # ── Expansión de un campo ausente a la lista completa de mensajes que
 #    `class-validator` produciría (todos los validadores fallan sobre `undefined`).
 #    El orden replica exactamente la salida observada del Backend A.
@@ -47,6 +53,9 @@ _MISSING_EXPANSION: dict[tuple[str, str], list[str]] = {
     ],
     ("/api/transactions", "account_id"): ["account_id must be a UUID"],
     ("/api/transactions", "date"): ["date must be a valid ISO 8601 date string"],
+    ("/api/tasks", "title"): _TITLE_MESSAGES,
+    ("/api/notes", "title"): _TITLE_MESSAGES,
+    ("/api/notes/{id}", "title"): _TITLE_MESSAGES,
 }
 
 # Errores de tipo en los que `class-validator` también reporta el resto de los
@@ -59,6 +68,20 @@ _TYPE_ERROR_EXPANSION: dict[str, list[str]] = {
     "description_string": [
         "description must be shorter than or equal to 255 characters",
         "description must be a string",
+    ],
+    # Módulo de Productividad (app/schemas/productivity.py)
+    "title_string": _TITLE_MESSAGES,
+    "task_description_string": [
+        "description must be shorter than or equal to 1000 characters",
+        "description must be a string",
+    ],
+    "audio_url_string": [
+        "audio_url must be shorter than or equal to 2048 characters",
+        "audio_url must be a string",
+    ],
+    "due_date_invalid": [
+        "due_date must be a date equal to or later than the current date",
+        "due_date must be a valid ISO 8601 date string",
     ],
 }
 
@@ -99,6 +122,14 @@ def _single_message(field: str, err: dict) -> str | None:
     return err.get("msg")
 
 
+def _route_key(path: str) -> str:
+    """`/api/notes/<id>` -> `/api/notes/{id}` para las claves de expansión."""
+    parts = path.rstrip("/").split("/")
+    if len(parts) == 4 and parts[1] == "api":
+        return "/".join(parts[:3] + ["{id}"])
+    return path
+
+
 def _translate_validation(path: str, errors: list[dict]) -> list[str]:
     by_field: dict[str, list[dict]] = {}
     extras: list[str] = []
@@ -123,7 +154,9 @@ def _translate_validation(path: str, errors: list[dict]) -> list[str]:
     for field in sorted(by_field, key=lambda f: _FIELD_ORDER.get(f, 99)):
         field_errors = by_field[field]
         if any(e.get("type") == "missing" for e in field_errors):
-            expansion = _MISSING_EXPANSION.get((path, field))
+            expansion = _MISSING_EXPANSION.get((path, field)) or _MISSING_EXPANSION.get(
+                (_route_key(path), field)
+            )
             if expansion:
                 messages.extend(expansion)
             else:

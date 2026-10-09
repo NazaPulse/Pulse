@@ -103,6 +103,26 @@ describe('TasksService', () => {
     );
   });
 
+  it('update ignora null en title/priority/status (columnas NOT NULL)', async () => {
+    repo.findOne.mockResolvedValue(buildTask());
+
+    await service.update(OWNER_ID, TASK_ID, {
+      title: null,
+      priority: null,
+      status: null,
+      description: null,
+    } as unknown as UpdateTaskDto);
+
+    expect(repo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Pagar la tarjeta',
+        priority: TaskPriority.HIGH,
+        status: TaskStatus.PENDING,
+        description: null,
+      }),
+    );
+  });
+
   it('update con payload vacío -> 400', async () => {
     await expect(service.update(OWNER_ID, TASK_ID, {})).rejects.toBeInstanceOf(BadRequestException);
     expect(repo.findOne).not.toHaveBeenCalled();

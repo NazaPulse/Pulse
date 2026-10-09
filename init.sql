@@ -44,4 +44,53 @@ CREATE TABLE IF NOT EXISTS categories (
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon VARCHAR(50);
 
 CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
+
+-- Issue #13/#14: Transacciones (ingresos/egresos). `amount` siempre positivo;
+-- el signo del impacto sobre `accounts.balance` lo determina `type`.
+CREATE TABLE IF NOT EXISTS transactions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_id      UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    category_id     UUID REFERENCES categories(id) ON DELETE SET NULL,
+    amount          NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+    type            VARCHAR(20) NOT NULL CHECK (type IN ('income', 'expense')),
+    date            TIMESTAMPTZ NOT NULL,
+    description     VARCHAR(255),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id_date ON transactions(user_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_category_id ON transactions(category_id);
+
+-- Módulo 2 (Issue #18/#19): Tareas (To-Do)
+CREATE TABLE IF NOT EXISTS tasks (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title           VARCHAR(200) NOT NULL,
+    description     VARCHAR(1000),
+    priority        VARCHAR(20) NOT NULL DEFAULT 'medium'
+                    CHECK (priority IN ('low', 'medium', 'high')),
+    status          VARCHAR(20) NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'completed')),
+    due_date        TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
+
+-- Módulo 2 (Issue #18/#19): Notas multimedia (texto y/o audio)
+CREATE TABLE IF NOT EXISTS notes (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title           VARCHAR(200) NOT NULL,
+    content         TEXT,
+    audio_url       VARCHAR(2048),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
 -- Verificación de Issue #1 completada
