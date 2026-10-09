@@ -1,10 +1,15 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { UPLOADS_ROOT } from './notes/audio-upload.config';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Archivos subidos (notas de voz) servidos públicamente en /uploads/*.
+  app.useStaticAssets(UPLOADS_ROOT, { prefix: '/uploads', index: false });
 
   // Validación global: rechaza propiedades no declaradas (additionalProperties: false
   // en openapi.yaml) y transforma los payloads a instancias de DTO.

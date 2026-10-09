@@ -21,3 +21,6 @@ npm-debug.log*
 # Tests
 /coverage
 *.tsbuildinfo
+
+# Archivos subidos por usuarios (notas de voz)
+/uploads
