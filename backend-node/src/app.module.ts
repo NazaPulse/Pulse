@@ -1,20 +1,20 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Account } from './accounts/account.entity';
-import { AccountsModule } from './accounts/accounts.module';
-import { AuthModule } from './auth/auth.module';
-import { CategoriesModule } from './categories/categories.module';
-import { Category } from './categories/category.entity';
-import { FinancesModule } from './finances/finances.module';
-import { Note } from './notes/note.entity';
-import { NotesModule } from './notes/notes.module';
-import { Task } from './tasks/task.entity';
-import { TasksModule } from './tasks/tasks.module';
-import { Transaction } from './transactions/transaction.entity';
-import { TransactionsModule } from './transactions/transactions.module';
-import { User } from './users/user.entity';
-import { UsersModule } from './users/users.module';
+import { Account } from './models/account.entity';
+import { AccountsModule } from './modules/accounts.module';
+import { AuthModule } from './modules/auth.module';
+import { CategoriesModule } from './modules/categories.module';
+import { Category } from './models/category.entity';
+import { FinancesModule } from './modules/finances.module';
+import { Note } from './models/note.entity';
+import { NotesModule } from './modules/notes.module';
+import { Task } from './models/task.entity';
+import { TasksModule } from './modules/tasks.module';
+import { Transaction } from './models/transaction.entity';
+import { TransactionsModule } from './modules/transactions.module';
+import { User } from './models/user.entity';
+import { UsersModule } from './modules/users.module';
 
 @Module({
   imports: [
@@ -29,7 +29,7 @@ import { UsersModule } from './users/users.module';
         host: config.get<string>('DB_HOST', 'localhost'),
         port: config.get<number>('DB_PORT', 5432),
         username: config.get<string>('DB_USER', 'pulse'),
-        password: config.get<string>('DB_PASSWORD', 'pulse'),
+        password: config.getOrThrow<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME', 'pulse'),
         entities: [User, Account, Category, Transaction, Task, Note],
         // El esquema es propiedad de init.sql (única fuente de verdad).

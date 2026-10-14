@@ -1,4 +1,4 @@
-import type { Account, AccountType } from '../lib/types'
+import type { Account, AccountType } from '@shared/types'
 
 const TYPE_LABEL: Record<AccountType, string> = {
   bank: 'Banco',

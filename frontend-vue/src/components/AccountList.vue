@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Account, AccountType } from '../lib/types'
+import type { Account, AccountType } from '@shared/types'
 
 defineProps<{ accounts: Account[] }>()
 const emit = defineEmits<{ edit: [account: Account]; remove: [account: Account] }>()

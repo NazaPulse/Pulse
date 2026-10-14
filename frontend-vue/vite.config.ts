@@ -1,6 +1,12 @@
+/// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
-import { defineConfig, loadEnv } from 'vite'
+import { fileURLToPath, URL } from 'node:url'
+
+import { defineConfig, loadEnv, searchForWorkspaceRoot } from 'vite'
+
+// Código común con el otro frontend (tipos, validaciones, cliente de la API, utils).
+const SHARED_DIR = fileURLToPath(new URL('../frontend-shared', import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -11,15 +17,25 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue(), tailwindcss()],
+    resolve: {
+      alias: { '@shared': SHARED_DIR },
+    },
     server: {
       port: 5174,
       strictPort: false,
+      fs: {
+        allow: [searchForWorkspaceRoot(process.cwd()), SHARED_DIR],
+      },
       proxy: {
         '/api': {
           target: proxyTarget,
           changeOrigin: true,
         },
       },
+    },
+    test: {
+      globals: true,
+      include: ['src/**/*.spec.ts', '../frontend-shared/**/*.spec.ts'],
     },
   }
 })

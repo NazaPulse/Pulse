@@ -93,16 +93,21 @@ def _status(v: Any) -> TaskStatus | None:
     raise _fail("status_enum", STATUS_ENUM_MESSAGE)
 
 
+def _parse_due_date(v: Any) -> dt.datetime | None:
+    """ISO 8601 estricto; `None` si el valor no es parseable."""
+    if not (isinstance(v, str) and _ISO_8601.match(v)):
+        return None
+    try:
+        return parse_iso_datetime(v)
+    except ValueError:
+        return None
+
+
 def _due_date(v: Any) -> dt.datetime | None:
     """`@IsDateString({ strict: true })` + `@IsNotPastDate()` del Backend A."""
     if v is None:
         return None
-    parsed: dt.datetime | None = None
-    if isinstance(v, str) and _ISO_8601.match(v):
-        try:
-            parsed = parse_iso_datetime(v)
-        except ValueError:
-            parsed = None
+    parsed = _parse_due_date(v)
     if parsed is None:
         # Un valor no parseable tampoco pasa `IsNotPastDate` (ver `due_date_invalid`).
         raise _fail("due_date_invalid", DUE_DATE_ISO_MESSAGE)

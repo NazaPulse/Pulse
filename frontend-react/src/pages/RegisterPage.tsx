@@ -1,69 +1,22 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 
 import { useAuth } from '../auth/useAuth'
 import { Alert } from '../components/Alert'
 import { AuthCard } from '../components/AuthCard'
 import { Field } from '../components/Field'
 import { SubmitButton } from '../components/SubmitButton'
-import { extractErrorMessage, registerRequest } from '../lib/api'
-import {
-  FULL_NAME_MAX_LENGTH,
-  PASSWORD_MIN_LENGTH,
-  isValidEmail,
-  isValidPassword,
-} from '../lib/validation'
-
-const REDIRECT_DELAY_MS = 1200
+import { useRegisterForm } from '../hooks/useRegisterForm'
+import { FULL_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@shared/validation'
+import { passwordError } from '@shared/utils/registerForm'
 
 export function RegisterPage() {
   const { isAuthenticated } = useAuth()
-  const navigate = useNavigate()
-
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
+  const form = useRegisterForm()
+  const { values, setField } = form
+  const locked = form.submitting || form.done
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />
-  }
-
-  const emailOk = isValidEmail(email)
-  const passwordOk = isValidPassword(password)
-  const fullNameOk = fullName.trim().length <= FULL_NAME_MAX_LENGTH
-  const canSubmit = emailOk && passwordOk && fullNameOk && !submitting && !done
-
-  const passwordError =
-    password.length > 0 && !passwordOk
-      ? `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`
-      : undefined
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!canSubmit) return
-
-    setSubmitting(true)
-    setError(null)
-    try {
-      const trimmedName = fullName.trim()
-      await registerRequest({
-        email: email.trim(),
-        password,
-        full_name: trimmedName.length > 0 ? trimmedName : undefined,
-      })
-      setDone(true)
-      window.setTimeout(() => {
-        navigate('/login', { replace: true, state: { registered: true } })
-      }, REDIRECT_DELAY_MS)
-    } catch (err) {
-      setError(extractErrorMessage(err, 'No se pudo completar el registro.'))
-    } finally {
-      setSubmitting(false)
-    }
   }
 
   return (
@@ -82,14 +35,14 @@ export function RegisterPage() {
         </>
       }
     >
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-        {done ? (
+      <form className="flex flex-col gap-4" onSubmit={form.handleSubmit} noValidate>
+        {form.done ? (
           <Alert variant="success">
             ¡Cuenta creada! Te llevamos al inicio de sesión…
           </Alert>
         ) : null}
 
-        {error ? <Alert variant="error">{error}</Alert> : null}
+        {form.error ? <Alert variant="error">{form.error}</Alert> : null}
 
         <Field
           label="Nombre completo (opcional)"
@@ -97,9 +50,9 @@ export function RegisterPage() {
           name="full_name"
           autoComplete="name"
           placeholder="Ada Lovelace"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          disabled={submitting || done}
+          value={values.fullName}
+          onChange={(e) => setField('fullName', e.target.value)}
+          disabled={locked}
           maxLength={FULL_NAME_MAX_LENGTH}
         />
 
@@ -109,9 +62,9 @@ export function RegisterPage() {
           name="email"
           autoComplete="email"
           placeholder="usuario@pulse.app"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={submitting || done}
+          value={values.email}
+          onChange={(e) => setField('email', e.target.value)}
+          disabled={locked}
           required
         />
 
@@ -121,17 +74,17 @@ export function RegisterPage() {
           name="password"
           autoComplete="new-password"
           placeholder="••••••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={submitting || done}
+          value={values.password}
+          onChange={(e) => setField('password', e.target.value)}
+          disabled={locked}
           hint={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres.`}
-          error={passwordError}
+          error={passwordError(values.password)}
           required
         />
 
         <SubmitButton
-          loading={submitting}
-          disabled={!canSubmit}
+          loading={form.submitting}
+          disabled={!form.canSubmit}
           loadingLabel="Creando cuenta…"
         >
           Crear cuenta

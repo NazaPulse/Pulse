@@ -4,10 +4,16 @@ Backend A: `/api/tasks` y `/api/tasks/{id}`. Todas requieren JWT
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, get_current_user
+from app.api.query_params import (
+    enum_messages,
+    parse_optional,
+    raise_if_invalid,
+    unknown_param_messages,
+)
 from app.db.session import get_db
 from app.schemas.auth import ErrorResponse
 from app.schemas.productivity import (
@@ -34,21 +40,14 @@ def get_filters(
 ) -> TaskFilters:
     """Valida los query params con los mismos mensajes que `ListTasksQueryDto`
     + `ValidationPipe(forbidNonWhitelisted)` de Node."""
-    messages: list[str] = [
-        f"property {key} should not exist"
-        for key in request.query_params
-        if key not in _ALLOWED_FILTERS
-    ]
-    if status is not None and status not in {s.value for s in TaskStatus}:
-        messages.append(STATUS_ENUM_MESSAGE)
-    if priority is not None and priority not in {p.value for p in TaskPriority}:
-        messages.append(PRIORITY_ENUM_MESSAGE)
-    if messages:
-        raise HTTPException(status_code=400, detail=messages)
-
+    raise_if_invalid(
+        unknown_param_messages(request, _ALLOWED_FILTERS)
+        + enum_messages(status, TaskStatus, STATUS_ENUM_MESSAGE)
+        + enum_messages(priority, TaskPriority, PRIORITY_ENUM_MESSAGE)
+    )
     return TaskFilters(
-        status=TaskStatus(status) if status else None,
-        priority=TaskPriority(priority) if priority else None,
+        status=parse_optional(status, TaskStatus),
+        priority=parse_optional(priority, TaskPriority),
     )
 
 

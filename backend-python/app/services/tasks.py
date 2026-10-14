@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import uuid
+from enum import Enum
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -22,6 +23,8 @@ from app.schemas.productivity import (
 from app.services.accounts import NOT_FOUND_MESSAGE, _iso_z
 
 EMPTY_UPDATE_MESSAGE = "Debe enviarse al menos un campo para actualizar."
+_REQUIRED_FIELDS = ("title", "priority", "status")
+_NULLABLE_FIELDS = ("description", "due_date")
 
 
 def _to_response(task: Task) -> TaskSchema:
@@ -36,6 +39,24 @@ def _to_response(task: Task) -> TaskSchema:
         created_at=_iso_z(task.created_at),
         updated_at=_iso_z(task.updated_at),
     )
+
+
+def _column_value(value: object) -> object:
+    return value.value if isinstance(value, Enum) else value
+
+
+def _apply_required_fields(task: Task, dto: TaskUpdateRequest, sent: set[str]) -> None:
+    """`title`/`priority`/`status` son NOT NULL: un `null` explícito se ignora."""
+    for field in _REQUIRED_FIELDS:
+        value = getattr(dto, field)
+        if field in sent and value is not None:
+            setattr(task, field, _column_value(value))
+
+
+def _apply_nullable_fields(task: Task, dto: TaskUpdateRequest, sent: set[str]) -> None:
+    for field in _NULLABLE_FIELDS:
+        if field in sent:
+            setattr(task, field, getattr(dto, field))
 
 
 class TasksService:
@@ -76,18 +97,8 @@ class TasksService:
             raise HTTPException(status_code=400, detail=EMPTY_UPDATE_MESSAGE)
 
         task = self._find_owned_or_fail(db, user_id, task_id)
-        # `title`/`priority`/`status` son NOT NULL: un `null` explícito se ignora.
-        if "title" in sent and dto.title is not None:
-            task.title = dto.title
-        if "description" in sent:
-            task.description = dto.description
-        if "priority" in sent and dto.priority is not None:
-            task.priority = dto.priority.value
-        if "status" in sent and dto.status is not None:
-            task.status = dto.status.value
-        if "due_date" in sent:
-            task.due_date = dto.due_date
-
+        _apply_required_fields(task, dto, sent)
+        _apply_nullable_fields(task, dto, sent)
         db.commit()
         db.refresh(task)
         return _to_response(task)

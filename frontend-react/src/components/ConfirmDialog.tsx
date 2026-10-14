@@ -10,14 +10,8 @@ type ConfirmDialogProps = {
   onCancel: () => void
 }
 
-export function ConfirmDialog({
-  title,
-  description,
-  confirmLabel = 'Eliminar',
-  loading,
-  onConfirm,
-  onCancel,
-}: ConfirmDialogProps) {
+export function ConfirmDialog(props: ConfirmDialogProps) {
+  const { title, description, confirmLabel = 'Eliminar', loading, onConfirm, onCancel } = props
   return (
     <Modal title={title} onClose={onCancel}>
       <p className="text-sm text-slate-600">{description}</p>

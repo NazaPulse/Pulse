@@ -64,20 +64,18 @@ def _to_response(note: Note) -> NoteSchema:
     )
 
 
-def save_audio(file: UploadFile | None) -> str:
-    """Valida y guarda el audio; devuelve su `audio_url` pública. Mismo orden
-    de chequeo que Multer: formato -> tamaño -> archivo presente."""
+def _audio_extension(file: UploadFile | None) -> str:
+    """Valida que haya archivo y que su MIME esté permitido; devuelve la extensión."""
     if file is None or not file.filename:
         raise HTTPException(status_code=400, detail=MISSING_AUDIO_MESSAGE)
-
     extension = ALLOWED_AUDIO_MIME_TYPES.get(_base_mime_type(file.content_type))
     if extension is None:
         raise HTTPException(status_code=400, detail=UNSUPPORTED_AUDIO_MESSAGE)
+    return extension
 
-    AUDIO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    filename = f"{uuid.uuid4()}{extension}"
-    destination = AUDIO_UPLOAD_DIR / filename
 
+def _copy_with_limit(file: UploadFile, destination: Path) -> None:
+    """Copia por bloques cortando al superar el máximo; borra el parcial si falla."""
     written = 0
     try:
         with destination.open("wb") as out:
@@ -90,6 +88,14 @@ def save_audio(file: UploadFile | None) -> str:
         destination.unlink(missing_ok=True)
         raise
 
+
+def save_audio(file: UploadFile | None) -> str:
+    """Valida y guarda el audio; devuelve su `audio_url` pública. Mismo orden
+    de chequeo que Multer: formato -> tamaño -> archivo presente."""
+    extension = _audio_extension(file)
+    AUDIO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid.uuid4()}{extension}"
+    _copy_with_limit(file, AUDIO_UPLOAD_DIR / filename)
     return f"{AUDIO_PUBLIC_PREFIX}/{filename}"
 
 

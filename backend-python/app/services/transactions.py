@@ -44,6 +44,23 @@ def _to_response(tx: Transaction) -> TransactionSchema:
     )
 
 
+def _apply_impact(account: Account, dto: TransactionCreateRequest) -> decimal.Decimal:
+    """Ajusta el saldo de la cuenta y devuelve el monto a persistir. Un egreso
+    sin saldo suficiente responde `400` antes de tocar la cuenta."""
+    # Node compara el saldo contra el monto sin redondear y deja que
+    # PostgreSQL (NUMERIC(14,2), half-up) redondee al persistir.
+    raw_amount = decimal.Decimal(str(dto.amount))
+    amount = raw_amount.quantize(_CENT, rounding=decimal.ROUND_HALF_UP)
+    balance = decimal.Decimal(account.balance)
+    if dto.type != TransactionType.EXPENSE:
+        account.balance = balance + amount
+        return amount
+    if balance < raw_amount:
+        raise HTTPException(status_code=400, detail=INSUFFICIENT_FUNDS_MESSAGE)
+    account.balance = balance - amount
+    return amount
+
+
 class TransactionsService:
     def list_for_user(
         self, db: Session, user_id: uuid.UUID, filters: TransactionFilters
@@ -72,52 +89,7 @@ class TransactionsService:
         queda consistente al confirmarse este mismo INSERT.
         """
         try:
-            account = db.scalar(
-                select(Account)
-                .where(
-                    Account.id == uuid.UUID(dto.account_id),
-                    Account.user_id == user_id,
-                    Account.is_active.is_(True),
-                )
-                .with_for_update()
-            )
-            if account is None:
-                raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
-
-            category_id: uuid.UUID | None = None
-            if dto.category_id is not None:
-                category = db.scalar(
-                    select(Category).where(
-                        Category.id == uuid.UUID(dto.category_id),
-                        Category.user_id == user_id,
-                    )
-                )
-                if category is None:
-                    raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
-                category_id = category.id
-
-            # Node compara el saldo contra el monto sin redondear y deja que
-            # PostgreSQL (NUMERIC(14,2), half-up) redondee al persistir.
-            raw_amount = decimal.Decimal(str(dto.amount))
-            amount = raw_amount.quantize(_CENT, rounding=decimal.ROUND_HALF_UP)
-            balance = decimal.Decimal(account.balance)
-            if dto.type == TransactionType.EXPENSE:
-                if balance < raw_amount:
-                    raise HTTPException(status_code=400, detail=INSUFFICIENT_FUNDS_MESSAGE)
-                account.balance = balance - amount
-            else:
-                account.balance = balance + amount
-
-            tx = Transaction(
-                user_id=user_id,
-                account_id=account.id,
-                category_id=category_id,
-                amount=amount,
-                type=dto.type.value,
-                date=parse_iso_datetime(dto.date),
-                description=dto.description,
-            )
-            db.add(tx)
+            tx = self._stage_transaction(db, user_id, dto)
             db.commit()
         except Exception:
             db.rollback()
@@ -125,6 +97,57 @@ class TransactionsService:
 
         db.refresh(tx)
         return _to_response(tx)
+
+    def _stage_transaction(
+        self, db: Session, user_id: uuid.UUID, dto: TransactionCreateRequest
+    ) -> Transaction:
+        """Pasos de `create` dentro de la transacción abierta. No hace commit:
+        `create` confirma o revierte todo junto."""
+        account = self._lock_account(db, user_id, dto.account_id)
+        category_id = self._owned_category_id(db, user_id, dto.category_id)
+        amount = _apply_impact(account, dto)
+        tx = Transaction(
+            user_id=user_id,
+            account_id=account.id,
+            category_id=category_id,
+            amount=amount,
+            type=dto.type.value,
+            date=parse_iso_datetime(dto.date),
+            description=dto.description,
+        )
+        db.add(tx)
+        return tx
+
+    def _lock_account(self, db: Session, user_id: uuid.UUID, account_id: str) -> Account:
+        """Cuenta activa del usuario con lock de fila `FOR UPDATE`; `404` si no."""
+        account = db.scalar(
+            select(Account)
+            .where(
+                Account.id == uuid.UUID(account_id),
+                Account.user_id == user_id,
+                Account.is_active.is_(True),
+            )
+            .with_for_update()
+        )
+        if account is None:
+            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
+        return account
+
+    def _owned_category_id(
+        self, db: Session, user_id: uuid.UUID, category_id: str | None
+    ) -> uuid.UUID | None:
+        """`None` si no se envió categoría; `404` si no existe o es de otro usuario."""
+        if category_id is None:
+            return None
+        category = db.scalar(
+            select(Category).where(
+                Category.id == uuid.UUID(category_id),
+                Category.user_id == user_id,
+            )
+        )
+        if category is None:
+            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
+        return category.id
 
 
 transactions_service = TransactionsService()
