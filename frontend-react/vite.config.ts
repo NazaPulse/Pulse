@@ -31,6 +31,11 @@ export default defineConfig(({ mode }) => {
           target: proxyTarget,
           changeOrigin: true,
         },
+        // Audios de las notas de voz (`audio_url` = /uploads/audio/...).
+        '/uploads': {
+          target: proxyTarget,
+          changeOrigin: true,
+        },
       },
     },
     test: {
