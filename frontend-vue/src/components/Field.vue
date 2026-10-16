@@ -12,6 +12,7 @@ const props = defineProps<{
   error?: string
   disabled?: boolean
   required?: boolean
+  autofocus?: boolean
   maxlength?: number
   step?: string
   min?: string
@@ -54,6 +55,7 @@ function onInput(event: Event) {
       :autocomplete="autocomplete"
       :disabled="disabled"
       :required="required"
+      :autofocus="autofocus"
       :maxlength="maxlength"
       :step="step"
       :min="min"
