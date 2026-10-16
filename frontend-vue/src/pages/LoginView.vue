@@ -1,48 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 
-import { useAuth } from '../auth/useAuth'
 import Alert from '../components/Alert.vue'
 import AuthCard from '../components/AuthCard.vue'
 import Field from '../components/Field.vue'
 import SubmitButton from '../components/SubmitButton.vue'
-import { extractErrorMessage, loginRequest } from '../lib/api'
-import { isNonEmpty, isValidEmail } from '../lib/validation'
-
-const router = useRouter()
-const { setToken } = useAuth()
+import { useLoginForm } from '../composables/useLoginForm'
 
 // Bandera puesta por RegisterView al redirigir tras un alta exitosa.
 const justRegistered = Boolean(window.history.state?.registered)
 
-const email = ref('')
-const password = ref('')
-const submitting = ref(false)
-const error = ref<string | null>(null)
-
-const canSubmit = computed(
-  () => isValidEmail(email.value) && isNonEmpty(password.value) && !submitting.value,
-)
-
-async function handleSubmit() {
-  if (!canSubmit.value) return
-
-  submitting.value = true
-  error.value = null
-  try {
-    const { access_token } = await loginRequest({
-      email: email.value.trim(),
-      password: password.value,
-    })
-    setToken(access_token)
-    await router.replace('/dashboard')
-  } catch (err) {
-    error.value = extractErrorMessage(err, 'Credenciales incorrectas.')
-  } finally {
-    submitting.value = false
-  }
-}
+const { values, submitting, error, canSubmit, handleSubmit } = useLoginForm()
 </script>
 
 <template>
@@ -55,7 +23,7 @@ async function handleSubmit() {
       <Alert v-if="error" variant="error">{{ error }}</Alert>
 
       <Field
-        v-model="email"
+        v-model="values.email"
         label="Email"
         type="email"
         name="email"
@@ -66,7 +34,7 @@ async function handleSubmit() {
       />
 
       <Field
-        v-model="password"
+        v-model="values.password"
         label="Contraseña"
         type="password"
         name="password"

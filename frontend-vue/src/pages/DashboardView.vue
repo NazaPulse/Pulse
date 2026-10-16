@@ -1,314 +1,44 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive } from 'vue'
 
-import { useAuth } from '../auth/useAuth'
-import AccountFormModal from '../components/AccountFormModal.vue'
-import AccountList from '../components/AccountList.vue'
 import Alert from '../components/Alert.vue'
-import CategoryFormModal from '../components/CategoryFormModal.vue'
-import CategoryList from '../components/CategoryList.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
-import FinanceCharts from '../components/FinanceCharts.vue'
+import DashboardContent from '../components/dashboard/DashboardContent.vue'
+import DashboardHeader from '../components/dashboard/DashboardHeader.vue'
+import DashboardModals from '../components/dashboard/DashboardModals.vue'
 import Spinner from '../components/Spinner.vue'
-import TransactionFormModal from '../components/TransactionFormModal.vue'
-import TransactionHistory from '../components/TransactionHistory.vue'
-import {
-  createAccount,
-  createCategory,
-  createTransaction,
-  deleteAccount,
-  deleteCategory,
-  extractErrorMessage,
-  getAccounts,
-  getCategories,
-  getFinanceSummary,
-  getTransactions,
-  updateAccount,
-  updateCategory,
-} from '../lib/api'
-import type {
-  Account,
-  AccountType,
-  Category,
-  CreateTransactionDTO,
-  FinanceSummary,
-  Transaction,
-} from '../lib/types'
+import { useDashboardModals } from '../composables/useDashboardModals'
+import { useFinanceData } from '../composables/useFinanceData'
 
-const router = useRouter()
-const { logout } = useAuth()
-
-const accounts = ref<Account[]>([])
-const categories = ref<Category[]>([])
-const transactions = ref<Transaction[]>([])
-const summary = ref<FinanceSummary | null>(null)
-const loading = ref(true)
-const loadError = ref<string | null>(null)
-
-const accountModalOpen = ref(false)
-const editingAccount = ref<Account | null>(null)
-const categoryModalOpen = ref(false)
-const editingCategory = ref<Category | null>(null)
-const transactionModalOpen = ref(false)
-
-type DeleteTarget =
-  | { kind: 'account'; account: Account }
-  | { kind: 'category'; category: Category }
-const deleteTarget = ref<DeleteTarget | null>(null)
-const deleting = ref(false)
-
-// Recarga cuentas, sobres, historial y resumen juntos: cualquier alta o
-// baja impacta saldos y métricas. El spinner solo se muestra en la carga inicial.
-async function loadData() {
-  loadError.value = null
-  try {
-    const [accountsData, categoriesData, transactionsData, summaryData] = await Promise.all([
-      getAccounts(),
-      getCategories(),
-      getTransactions(),
-      getFinanceSummary(),
-    ])
-    accounts.value = accountsData
-    categories.value = categoriesData
-    transactions.value = transactionsData
-    summary.value = summaryData
-  } catch (err) {
-    loadError.value = extractErrorMessage(err, 'No se pudieron cargar tus datos financieros.')
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(loadData)
-
-function handleLogout() {
-  logout()
-  router.replace('/login')
-}
-
-function openCreateAccount() {
-  editingAccount.value = null
-  accountModalOpen.value = true
-}
-
-function openEditAccount(account: Account) {
-  editingAccount.value = account
-  accountModalOpen.value = true
-}
-
-function closeAccountModal() {
-  accountModalOpen.value = false
-  editingAccount.value = null
-}
-
-async function handleAccountSubmit(values: {
-  name: string
-  type: AccountType
-  initial_balance: number
-}) {
-  if (editingAccount.value) {
-    await updateAccount(editingAccount.value.id, { name: values.name, type: values.type })
-  } else {
-    await createAccount(values)
-  }
-  closeAccountModal()
-  await loadData()
-}
-
-function openCreateCategory() {
-  editingCategory.value = null
-  categoryModalOpen.value = true
-}
-
-function openEditCategory(category: Category) {
-  editingCategory.value = category
-  categoryModalOpen.value = true
-}
-
-function closeCategoryModal() {
-  categoryModalOpen.value = false
-  editingCategory.value = null
-}
-
-async function handleCategorySubmit(values: {
-  name: string
-  target_amount: number
-  color: string
-  icon: string
-}) {
-  if (editingCategory.value) {
-    await updateCategory(editingCategory.value.id, values)
-  } else {
-    await createCategory(values)
-  }
-  closeCategoryModal()
-  await loadData()
-}
-
-async function handleTransactionSubmit(values: CreateTransactionDTO) {
-  await createTransaction(values)
-  transactionModalOpen.value = false
-  await loadData()
-}
-
-function askDeleteAccount(account: Account) {
-  deleteTarget.value = { kind: 'account', account }
-}
-
-function askDeleteCategory(category: Category) {
-  deleteTarget.value = { kind: 'category', category }
-}
-
-async function handleConfirmDelete() {
-  const target = deleteTarget.value
-  if (!target) return
-
-  deleting.value = true
-  try {
-    if (target.kind === 'account') {
-      await deleteAccount(target.account.id)
-    } else {
-      await deleteCategory(target.category.id)
-    }
-    deleteTarget.value = null
-    await loadData()
-  } catch (err) {
-    loadError.value = extractErrorMessage(err, 'No se pudo eliminar el registro.')
-  } finally {
-    deleting.value = false
-  }
-}
+const { data, loading, error, reload } = useFinanceData()
+const modals = reactive(
+  useDashboardModals({
+    reload,
+    onError: (message) => {
+      error.value = message
+    },
+  }),
+)
 </script>
 
 <template>
   <main class="min-h-screen bg-slate-100 pb-16">
-    <header class="border-b border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-        <div class="flex items-center gap-2">
-          <div
-            class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white"
-          >
-            P
-          </div>
-          <span class="font-semibold text-slate-900">Pulse</span>
-        </div>
-        <button
-          type="button"
-          class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-          @click="handleLogout"
-        >
-          Cerrar sesión
-        </button>
-      </div>
-    </header>
+    <DashboardHeader />
 
     <section class="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Panel financiero</h1>
       <p class="mt-1 text-sm text-slate-500">Tus métricas, cuentas, sobres de presupuesto y movimientos.</p>
 
-      <div v-if="loadError" class="mt-6">
-        <Alert variant="error">{{ loadError }}</Alert>
+      <div v-if="error" class="mt-6">
+        <Alert variant="error">{{ error }}</Alert>
       </div>
 
       <div v-if="loading" class="mt-16 flex justify-center">
         <Spinner svg-class="h-8 w-8 text-indigo-600" />
       </div>
 
-      <template v-else>
-        <div v-if="summary" class="mt-8">
-          <FinanceCharts :summary="summary" />
-        </div>
-
-        <div class="mt-10">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-900">Cuentas</h2>
-            <button
-              type="button"
-              class="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-              @click="openCreateAccount"
-            >
-              + Nueva cuenta
-            </button>
-          </div>
-          <AccountList
-            :accounts="accounts"
-            @edit="openEditAccount"
-            @remove="askDeleteAccount"
-          />
-        </div>
-
-        <div class="mt-10">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-900">Sobres de presupuesto</h2>
-            <button
-              type="button"
-              class="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-              @click="openCreateCategory"
-            >
-              + Nuevo sobre
-            </button>
-          </div>
-          <CategoryList
-            :categories="categories"
-            @edit="openEditCategory"
-            @remove="askDeleteCategory"
-          />
-        </div>
-
-        <div class="mt-10">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-900">Historial de movimientos</h2>
-            <button
-              type="button"
-              class="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-              @click="transactionModalOpen = true"
-            >
-              + Nueva transacción
-            </button>
-          </div>
-          <TransactionHistory
-            :transactions="transactions"
-            :accounts="accounts"
-            :categories="categories"
-          />
-        </div>
-      </template>
+      <DashboardContent v-else :data="data" :modals="modals" />
     </section>
 
-    <AccountFormModal
-      v-if="accountModalOpen"
-      :account="editingAccount"
-      :on-submit="handleAccountSubmit"
-      @close="closeAccountModal"
-    />
-
-    <CategoryFormModal
-      v-if="categoryModalOpen"
-      :category="editingCategory"
-      :on-submit="handleCategorySubmit"
-      @close="closeCategoryModal"
-    />
-
-    <TransactionFormModal
-      v-if="transactionModalOpen"
-      :accounts="accounts"
-      :categories="categories"
-      :on-submit="handleTransactionSubmit"
-      @close="transactionModalOpen = false"
-    />
-
-    <ConfirmDialog
-      v-if="deleteTarget"
-      :title="deleteTarget.kind === 'account' ? 'Eliminar cuenta' : 'Eliminar sobre'"
-      :description="
-        deleteTarget.kind === 'account'
-          ? `¿Seguro que querés eliminar &quot;${deleteTarget.account.name}&quot;? Esta acción no se puede deshacer.`
-          : `¿Seguro que querés eliminar &quot;${deleteTarget.category.name}&quot;? Esta acción no se puede deshacer.`
-      "
-      :loading="deleting"
-      @confirm="handleConfirmDelete"
-      @cancel="deleteTarget = null"
-    />
+    <DashboardModals :data="data" :modals="modals" />
   </main>
 </template>

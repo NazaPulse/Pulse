@@ -3,6 +3,12 @@ en memoria (no requiere PostgreSQL). El hashing Argon2id es el real.
 """
 from __future__ import annotations
 
+import os
+
+# Secretos solo para tests (Settings no tiene defaults). Deben fijarse antes de importar `app`.
+os.environ.setdefault("DB_PASSWORD", "test-db-password")
+os.environ.setdefault("JWT_SECRET", "test-only-jwt-secret-with-enough-length-for-hs256")
+
 import datetime as dt
 import uuid
 from collections.abc import Callable

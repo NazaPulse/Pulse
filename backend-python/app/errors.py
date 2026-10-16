@@ -9,6 +9,7 @@ NestJS serializa sus excepciones como:
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from http import HTTPStatus
 
 from fastapi import FastAPI, Request
@@ -93,6 +94,7 @@ _CONSTRAINT_ORDER = {
     "string_type": 3,
 }
 _FIELD_ORDER = {"email": 0, "password": 1, "full_name": 2}
+_JSON_ERROR_TYPES = {"json_invalid", "value_error.jsondecode"}
 
 
 def _phrase(status_code: int) -> str:
@@ -102,21 +104,31 @@ def _phrase(status_code: int) -> str:
         return "Error"
 
 
+def _too_short_message(field: str, ctx: dict) -> str:
+    min_len = int(ctx.get("min_length", 1))
+    if min_len <= 1:
+        return f"{field} should not be empty"
+    return f"{field} must be longer than or equal to {min_len} characters"
+
+
+def _too_long_message(field: str, ctx: dict) -> str:
+    max_len = int(ctx.get("max_length", 0))
+    return f"{field} must be shorter than or equal to {max_len} characters"
+
+
+# Traducción de cada `type` de Pydantic a la frase de `class-validator`.
+_MESSAGE_BUILDERS: dict[str, Callable[[str, dict], str]] = {
+    "extra_forbidden": lambda field, _ctx: f"property {field} should not exist",
+    "string_too_short": _too_short_message,
+    "string_too_long": _too_long_message,
+    "string_type": lambda field, _ctx: f"{field} must be a string",
+}
+
+
 def _single_message(field: str, err: dict) -> str | None:
-    etype = err.get("type", "")
-    ctx = err.get("ctx", {}) or {}
-    if etype == "extra_forbidden":
-        return f"property {field} should not exist"
-    if etype == "string_too_short":
-        min_len = int(ctx.get("min_length", 1))
-        if min_len <= 1:
-            return f"{field} should not be empty"
-        return f"{field} must be longer than or equal to {min_len} characters"
-    if etype == "string_too_long":
-        max_len = int(ctx.get("max_length", 0))
-        return f"{field} must be shorter than or equal to {max_len} characters"
-    if etype == "string_type":
-        return f"{field} must be a string"
+    builder = _MESSAGE_BUILDERS.get(err.get("type", ""))
+    if builder:
+        return builder(field, err.get("ctx", {}) or {})
     if field == "email":  # value_error de EmailStr u otro fallo de formato
         return "email must be an email"
     return err.get("msg")
@@ -130,54 +142,72 @@ def _route_key(path: str) -> str:
     return path
 
 
-def _translate_validation(path: str, errors: list[dict]) -> list[str]:
+def _field_of(err: dict) -> str:
+    loc = [p for p in err.get("loc", ()) if p != "body"]
+    return str(loc[0]) if loc else "body"
+
+
+def _group_errors(errors: list[dict]) -> tuple[dict[str, list[dict]], list[str], bool]:
+    """Agrupa los errores por campo y separa propiedades extra y JSON inválido."""
     by_field: dict[str, list[dict]] = {}
     extras: list[str] = []
     json_broken = False
-
     for err in errors:
         etype = err.get("type", "")
-        if etype in {"json_invalid", "value_error.jsondecode"}:
+        if etype in _JSON_ERROR_TYPES:
             json_broken = True
             continue
-        loc = [p for p in err.get("loc", ()) if p != "body"]
-        field = str(loc[0]) if loc else "body"
+        field = _field_of(err)
         if etype == "extra_forbidden":
             extras.append(f"property {field} should not exist")
             continue
         by_field.setdefault(field, []).append(err)
+    return by_field, extras, json_broken
 
-    if json_broken and not by_field and not extras:
+
+def _missing_messages(path: str, field: str) -> list[str]:
+    expansion = _MISSING_EXPANSION.get((path, field)) or _MISSING_EXPANSION.get(
+        (_route_key(path), field)
+    )
+    return expansion or [f"{field} should not be empty"]
+
+
+def _constraint_rank(field: str, err: dict) -> int:
+    etype = err.get("type", "")
+    if field == "email" and etype == "value_error":
+        etype = "email"
+    return _CONSTRAINT_ORDER.get(etype, 99)
+
+
+def _error_messages(field: str, err: dict) -> list[str]:
+    expansion = _TYPE_ERROR_EXPANSION.get(err.get("type", ""))
+    if expansion:
+        return expansion
+    msg = _single_message(field, err)
+    return [msg] if msg else []
+
+
+def _field_messages(path: str, field: str, field_errors: list[dict]) -> list[str]:
+    if any(e.get("type") == "missing" for e in field_errors):
+        return _missing_messages(path, field)
+    messages: list[str] = []
+    for err in sorted(field_errors, key=lambda e: _constraint_rank(field, e)):
+        messages.extend(_error_messages(field, err))
+    return messages
+
+
+def _only_json_error(by_field: dict, extras: list[str], json_broken: bool) -> bool:
+    return json_broken and not by_field and not extras
+
+
+def _translate_validation(path: str, errors: list[dict]) -> list[str]:
+    by_field, extras, json_broken = _group_errors(errors)
+    if _only_json_error(by_field, extras, json_broken):
         return ["Invalid JSON body"]
 
     messages: list[str] = []
     for field in sorted(by_field, key=lambda f: _FIELD_ORDER.get(f, 99)):
-        field_errors = by_field[field]
-        if any(e.get("type") == "missing" for e in field_errors):
-            expansion = _MISSING_EXPANSION.get((path, field)) or _MISSING_EXPANSION.get(
-                (_route_key(path), field)
-            )
-            if expansion:
-                messages.extend(expansion)
-            else:
-                messages.append(f"{field} should not be empty")
-            continue
-        ordered = sorted(
-            field_errors,
-            key=lambda e: _CONSTRAINT_ORDER.get(
-                "email" if field == "email" and e.get("type") == "value_error"
-                else e.get("type", ""),
-                99,
-            ),
-        )
-        for e in ordered:
-            expansion = _TYPE_ERROR_EXPANSION.get(e.get("type", ""))
-            if expansion:
-                messages.extend(expansion)
-                continue
-            msg = _single_message(field, e)
-            if msg:
-                messages.append(msg)
+        messages.extend(_field_messages(path, field, by_field[field]))
 
     # Igual que `ValidationPipe(forbidNonWhitelisted)`: las propiedades no
     # declaradas se reportan antes que los validadores de cada campo.

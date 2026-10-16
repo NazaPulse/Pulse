@@ -32,24 +32,30 @@ def _extract_bearer_token(request: Request) -> str | None:
     return value
 
 
-def get_current_user(request: Request) -> CurrentUser:
-    token = _extract_bearer_token(request)
-    if not token:
-        raise HTTPException(status_code=401, detail=UNAUTHORIZED_MESSAGE)
+def _unauthorized() -> HTTPException:
+    return HTTPException(status_code=401, detail=UNAUTHORIZED_MESSAGE)
 
+
+def _decode_or_fail(token: str) -> dict:
     try:
-        payload = decode_access_token(token)
+        return decode_access_token(token)
     except jwt.PyJWTError as exc:
-        raise HTTPException(status_code=401, detail=UNAUTHORIZED_MESSAGE) from exc
+        raise _unauthorized() from exc
 
+
+def _user_from_payload(payload: dict) -> CurrentUser:
     sub = payload.get("sub")
     email = payload.get("email")
     if not sub or not email:
-        raise HTTPException(status_code=401, detail=UNAUTHORIZED_MESSAGE)
-
+        raise _unauthorized()
     try:
-        user_id = uuid.UUID(str(sub))
+        return CurrentUser(id=uuid.UUID(str(sub)), email=email)
     except ValueError as exc:
-        raise HTTPException(status_code=401, detail=UNAUTHORIZED_MESSAGE) from exc
+        raise _unauthorized() from exc
 
-    return CurrentUser(id=user_id, email=email)
+
+def get_current_user(request: Request) -> CurrentUser:
+    token = _extract_bearer_token(request)
+    if not token:
+        raise _unauthorized()
+    return _user_from_payload(_decode_or_fail(token))

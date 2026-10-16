@@ -39,7 +39,7 @@ cd backend-python
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env            # valores por defecto = docker-compose.yml de la raíz
+cp .env.example .env            # completá DB_PASSWORD y JWT_SECRET (ver comentarios)
 
 # PostgreSQL debe estar arriba (contenedor pulse_postgres de docker-compose.yml).
 # Levantar en un puerto alternativo al Backend A (que usa 3000):

@@ -1,5 +1,5 @@
-import { currencyFormatter, formatDate } from '../lib/format'
-import type { Account, Category, Transaction } from '../lib/types'
+import { currencyFormatter, formatDate } from '@shared/format'
+import type { Account, Category, Transaction } from '@shared/types'
 
 type TransactionHistoryProps = {
   transactions: Transaction[]

@@ -6,10 +6,17 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, get_current_user
+from app.api.query_params import (
+    enum_messages,
+    parse_optional,
+    raise_if_invalid,
+    unknown_param_messages,
+    uuid_messages,
+)
 from app.db.session import get_db
 from app.schemas.auth import ErrorResponse
 from app.schemas.transaction import (
@@ -18,7 +25,6 @@ from app.schemas.transaction import (
     TransactionCreateRequest,
     TransactionFilters,
     TransactionType,
-    is_uuid,
 )
 from app.services.transactions import transactions_service
 
@@ -35,26 +41,16 @@ def get_filters(
 ) -> TransactionFilters:
     """Valida los query params con los mismos mensajes que
     `ListTransactionsQueryDto` + `ValidationPipe(forbidNonWhitelisted)` de Node."""
-    # Node reporta primero las propiedades no declaradas (whitelist) y luego
-    # los validadores de cada campo.
-    messages: list[str] = [
-        f"property {key} should not exist"
-        for key in request.query_params
-        if key not in _ALLOWED_FILTERS
-    ]
-    if account_id is not None and not is_uuid(account_id):
-        messages.append("account_id must be a UUID")
-    if category_id is not None and not is_uuid(category_id):
-        messages.append("category_id must be a UUID")
-    if type is not None and type not in {t.value for t in TransactionType}:
-        messages.append(TYPE_ENUM_MESSAGE)
-    if messages:
-        raise HTTPException(status_code=400, detail=messages)
-
+    raise_if_invalid(
+        unknown_param_messages(request, _ALLOWED_FILTERS)
+        + uuid_messages("account_id", account_id)
+        + uuid_messages("category_id", category_id)
+        + enum_messages(type, TransactionType, TYPE_ENUM_MESSAGE)
+    )
     return TransactionFilters(
-        account_id=uuid.UUID(account_id) if account_id else None,
-        category_id=uuid.UUID(category_id) if category_id else None,
-        type=TransactionType(type) if type else None,
+        account_id=parse_optional(account_id, uuid.UUID),
+        category_id=parse_optional(category_id, uuid.UUID),
+        type=parse_optional(type, TransactionType),
     )
 
 

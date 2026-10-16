@@ -1,52 +1,23 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../auth/useAuth'
 import { Alert } from '../components/Alert'
 import { AuthCard } from '../components/AuthCard'
 import { Field } from '../components/Field'
 import { SubmitButton } from '../components/SubmitButton'
-import { extractErrorMessage, loginRequest } from '../lib/api'
-import { isNonEmpty, isValidEmail } from '../lib/validation'
+import { useLoginForm } from '../hooks/useLoginForm'
 
 type LocationState = { registered?: boolean } | null
 
 export function LoginPage() {
-  const { isAuthenticated, setToken } = useAuth()
-  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const location = useLocation()
   const justRegistered = (location.state as LocationState)?.registered ?? false
-
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const form = useLoginForm()
+  const { values, setField, submitting } = form
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />
-  }
-
-  const canSubmit = isValidEmail(email) && isNonEmpty(password) && !submitting
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!canSubmit) return
-
-    setSubmitting(true)
-    setError(null)
-    try {
-      const { access_token } = await loginRequest({
-        email: email.trim(),
-        password,
-      })
-      setToken(access_token)
-      navigate('/dashboard', { replace: true })
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Credenciales incorrectas.'))
-    } finally {
-      setSubmitting(false)
-    }
   }
 
   return (
@@ -65,14 +36,14 @@ export function LoginPage() {
         </>
       }
     >
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+      <form className="flex flex-col gap-4" onSubmit={form.handleSubmit} noValidate>
         {justRegistered ? (
           <Alert variant="success">
             Cuenta creada correctamente. Iniciá sesión para continuar.
           </Alert>
         ) : null}
 
-        {error ? <Alert variant="error">{error}</Alert> : null}
+        {form.error ? <Alert variant="error">{form.error}</Alert> : null}
 
         <Field
           label="Email"
@@ -80,8 +51,8 @@ export function LoginPage() {
           name="email"
           autoComplete="email"
           placeholder="usuario@pulse.app"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={values.email}
+          onChange={(e) => setField('email', e.target.value)}
           disabled={submitting}
           required
         />
@@ -92,15 +63,15 @@ export function LoginPage() {
           name="password"
           autoComplete="current-password"
           placeholder="••••••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={values.password}
+          onChange={(e) => setField('password', e.target.value)}
           disabled={submitting}
           required
         />
 
         <SubmitButton
           loading={submitting}
-          disabled={!canSubmit}
+          disabled={!form.canSubmit}
           loadingLabel="Ingresando…"
         >
           Ingresar

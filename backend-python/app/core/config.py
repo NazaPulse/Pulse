@@ -17,18 +17,17 @@ class Settings(BaseSettings):
     node_env: str = Field(default="development", alias="NODE_ENV")
 
     # PostgreSQL — valores por defecto = docker-compose.yml de la raíz
-    # (POSTGRES_USER/PASSWORD/DB => "pulse"). init.sql es la única fuente de verdad
+    # (POSTGRES_USER/DB => "pulse"). init.sql es la única fuente de verdad
     # del esquema: la app NO crea ni migra tablas.
+    # Los secretos (DB_PASSWORD, JWT_SECRET) no tienen default: deben venir del entorno.
     db_host: str = Field(default="localhost", alias="DB_HOST")
     db_port: int = Field(default=5432, alias="DB_PORT")
     db_user: str = Field(default="pulse", alias="DB_USER")
-    db_password: str = Field(default="pulse", alias="DB_PASSWORD")
+    db_password: str = Field(alias="DB_PASSWORD")
     db_name: str = Field(default="pulse", alias="DB_NAME")
 
     # JWT — mismo contrato que el Backend A
-    jwt_secret: str = Field(
-        default="dev-only-change-me-please-use-a-long-random-string", alias="JWT_SECRET"
-    )
+    jwt_secret: str = Field(alias="JWT_SECRET")
     jwt_expires_in_seconds: int = Field(default=3600, alias="JWT_EXPIRES_IN_SECONDS")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
 

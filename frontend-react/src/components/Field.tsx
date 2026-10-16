@@ -7,13 +7,33 @@ type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
   error?: string
 }
 
-export function Field({ label, hint, error, className, ...inputProps }: FieldProps) {
+/** El error tiene prioridad sobre la ayuda, igual que en el mensaje visible. */
+function describedById(id: string, error?: string, hint?: string): string | undefined {
+  if (error) return `${id}-error`
+  if (hint) return `${id}-hint`
+  return undefined
+}
+
+function FieldMessage({ id, error, hint }: { id: string; error?: string; hint?: string }) {
+  if (error) {
+    return (
+      <p id={`${id}-error`} className="text-xs text-red-600">
+        {error}
+      </p>
+    )
+  }
+  if (!hint) return null
+  return (
+    <p id={`${id}-hint`} className="text-xs text-slate-500">
+      {hint}
+    </p>
+  )
+}
+
+export function Field(props: FieldProps) {
+  const { label, hint, error, className, ...inputProps } = props
   const id = useId()
-  const describedBy = error
-    ? `${id}-error`
-    : hint
-      ? `${id}-hint`
-      : undefined
+  const describedBy = describedById(id, error, hint)
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -34,15 +54,7 @@ export function Field({ label, hint, error, className, ...inputProps }: FieldPro
         ].join(' ')}
         {...inputProps}
       />
-      {error ? (
-        <p id={`${id}-error`} className="text-xs text-red-600">
-          {error}
-        </p>
-      ) : hint ? (
-        <p id={`${id}-hint`} className="text-xs text-slate-500">
-          {hint}
-        </p>
-      ) : null}
+      <FieldMessage id={id} error={error} hint={hint} />
     </div>
   )
 }

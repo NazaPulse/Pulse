@@ -1,5 +1,10 @@
-import axios, { AxiosError } from 'axios'
+import axios from 'axios'
 
+<<<<<<< HEAD
+import { createApi } from '@shared/api'
+
+export { extractErrorMessage } from '@shared/api'
+=======
 import type {
   Account,
   AudioUploadResponse,
@@ -24,6 +29,7 @@ import type {
   UpdateTaskDTO,
   UserPublic,
 } from './types'
+>>>>>>> main
 
 // Vacío => Axios usa rutas relativas (mismo origen) y el proxy de Vite
 // reenvía /api/* al backend. Con valor => pega directo a esa URL.
@@ -35,6 +41,23 @@ export const http = axios.create({
   timeout: 15_000,
 })
 
+<<<<<<< HEAD
+export const {
+  registerRequest,
+  loginRequest,
+  getAccounts,
+  createAccount,
+  updateAccount,
+  deleteAccount,
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getTransactions,
+  createTransaction,
+  getFinanceSummary,
+} = createApi(http)
+=======
 export async function registerRequest(
   payload: RegisterRequest,
 ): Promise<UserPublic> {
@@ -216,3 +239,4 @@ export function extractErrorMessage(
   }
   return fallback
 }
+>>>>>>> main

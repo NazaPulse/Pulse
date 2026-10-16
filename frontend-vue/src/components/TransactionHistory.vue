@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { currencyFormatter, formatDate } from '../lib/format'
-import type { Account, Category, Transaction } from '../lib/types'
+import { currencyFormatter, formatDate } from '@shared/format'
+import type { Account, Category, Transaction } from '@shared/types'
 
 const props = defineProps<{
   transactions: Transaction[]

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category } from '../lib/types'
+import type { Category } from '@shared/types'
 
 defineProps<{ categories: Category[] }>()
 const emit = defineEmits<{ edit: [category: Category]; remove: [category: Category] }>()

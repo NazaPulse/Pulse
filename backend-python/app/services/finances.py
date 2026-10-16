@@ -5,8 +5,9 @@ solo egresos y calcula el porcentaje sobre `total_expenses`.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import Row, and_, func, select
 from sqlalchemy.orm import Session
 
 from app.models.account import Account
@@ -19,33 +20,62 @@ def _round2(value: float) -> float:
     return round(value * 100) / 100
 
 
+def _percentage(amount: float, total_expenses: float) -> float:
+    return _round2(amount / total_expenses * 100) if total_expenses > 0 else 0
+
+
+def _sum_of_type(tx_type: TransactionType):
+    return func.coalesce(func.sum(Transaction.amount).filter(Transaction.type == tx_type.value), 0)
+
+
+def _to_category_summary(row: Row, total_expenses: float) -> CategorySummary:
+    category_id, name, icon, color, amount = row
+    amount_f = float(amount)
+    return CategorySummary(
+        category_id=str(category_id),
+        category_name=name,
+        # `color`/`icon` son nullable en init.sql; igual que el
+        # Backend A, se devuelven como '' (string no-nulo).
+        icon=icon or "",
+        color=color or "",
+        total_amount=amount_f,
+        percentage=_percentage(amount_f, total_expenses),
+    )
+
+
 class FinancesService:
     def get_summary(self, db: Session, user_id: uuid.UUID) -> FinancesSummary:
+        total_balance = self._total_balance(db, user_id)
+        total_income, total_expenses = self._income_and_expenses(db, user_id)
+        rows = self._expenses_by_category(db, user_id)
+        return FinancesSummary(
+            total_balance=total_balance,
+            total_income=total_income,
+            total_expenses=total_expenses,
+            by_category=[_to_category_summary(row, total_expenses) for row in rows],
+        )
+
+    def _total_balance(self, db: Session, user_id: uuid.UUID) -> float:
         total_balance = db.scalar(
             select(func.coalesce(func.sum(Account.balance), 0)).where(
                 Account.user_id == user_id, Account.is_active.is_(True)
             )
         )
+        return float(total_balance or 0)
 
+    def _income_and_expenses(self, db: Session, user_id: uuid.UUID) -> tuple[float, float]:
         totals = db.execute(
             select(
-                func.coalesce(
-                    func.sum(Transaction.amount).filter(
-                        Transaction.type == TransactionType.INCOME.value
-                    ),
-                    0,
-                ),
-                func.coalesce(
-                    func.sum(Transaction.amount).filter(
-                        Transaction.type == TransactionType.EXPENSE.value
-                    ),
-                    0,
-                ),
+                _sum_of_type(TransactionType.INCOME),
+                _sum_of_type(TransactionType.EXPENSE),
             ).where(Transaction.user_id == user_id)
         ).one()
+        return float(totals[0]), float(totals[1])
 
+    def _expenses_by_category(self, db: Session, user_id: uuid.UUID) -> Sequence[Row]:
+        """Solo egresos, agrupados por sobre y ordenados de mayor a menor."""
         total_amount = func.sum(Transaction.amount).label("total_amount")
-        category_rows = db.execute(
+        return db.execute(
             select(Category.id, Category.name, Category.icon, Category.color, total_amount)
             .join(
                 Category,
@@ -61,32 +91,6 @@ class FinancesService:
             .group_by(Category.id, Category.name, Category.icon, Category.color)
             .order_by(total_amount.desc())
         ).all()
-
-        total_income = float(totals[0])
-        total_expenses = float(totals[1])
-
-        by_category = []
-        for category_id, name, icon, color, amount in category_rows:
-            amount_f = float(amount)
-            by_category.append(
-                CategorySummary(
-                    category_id=str(category_id),
-                    category_name=name,
-                    # `color`/`icon` son nullable en init.sql; igual que el
-                    # Backend A, se devuelven como '' (string no-nulo).
-                    icon=icon or "",
-                    color=color or "",
-                    total_amount=amount_f,
-                    percentage=_round2(amount_f / total_expenses * 100) if total_expenses > 0 else 0,
-                )
-            )
-
-        return FinancesSummary(
-            total_balance=float(total_balance or 0),
-            total_income=total_income,
-            total_expenses=total_expenses,
-            by_category=by_category,
-        )
 
 
 finances_service = FinancesService()

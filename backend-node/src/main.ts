@@ -3,16 +3,11 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { UPLOADS_ROOT } from './notes/audio-upload.config';
+import { UPLOADS_ROOT } from './common/config/audio-upload.config';
 
-async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
-
-  // Archivos subidos (notas de voz) servidos públicamente en /uploads/*.
-  app.useStaticAssets(UPLOADS_ROOT, { prefix: '/uploads', index: false });
-
-  // Validación global: rechaza propiedades no declaradas (additionalProperties: false
-  // en openapi.yaml) y transforma los payloads a instancias de DTO.
+// Validación global: rechaza propiedades no declaradas (additionalProperties: false
+// en openapi.yaml) y transforma los payloads a instancias de DTO.
+function setupValidation(app: NestExpressApplication): void {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -21,8 +16,10 @@ async function bootstrap(): Promise<void> {
       transformOptions: { enableImplicitConversion: false },
     }),
   );
+}
 
-  // Documentación interactiva en /api/docs (PROYECTO.md · Objetivo 5).
+// Documentación interactiva en /api/docs (PROYECTO.md · Objetivo 5).
+function setupSwagger(app: NestExpressApplication): void {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Pulse API')
     .setDescription('Backend A (NestJS). Contrato: openapi.yaml en la raíz del repo.')
@@ -31,6 +28,15 @@ async function bootstrap(): Promise<void> {
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
+}
+
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Archivos subidos (notas de voz) servidos públicamente en /uploads/*.
+  app.useStaticAssets(UPLOADS_ROOT, { prefix: '/uploads', index: false });
+  setupValidation(app);
+  setupSwagger(app);
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
