@@ -1,29 +1,34 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { http } from '../lib/api'
 import { AuthContext, STORAGE_KEY } from './context'
 import type { AuthContextValue } from './context'
 
-function readStoredToken(): string | null {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY)
-  } catch {
-    return null
+// Se aplica de forma síncrona (no en un efecto): React ejecuta los efectos de
+// las páginas hijas antes que los de este provider, y su primera carga de
+// datos saldría sin token al recargar una ruta protegida.
+function applyAuthHeader(token: string | null) {
+  if (token) {
+    http.defaults.headers.common.Authorization = `Bearer ${token}`
+  } else {
+    delete http.defaults.headers.common.Authorization
   }
+}
+
+function readStoredToken(): string | null {
+  let token: string | null = null
+  try {
+    token = window.localStorage.getItem(STORAGE_KEY)
+  } catch {
+    token = null
+  }
+  applyAuthHeader(token)
+  return token
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(readStoredToken)
-
-  // Mantiene el header Authorization sincronizado con el token vigente.
-  useEffect(() => {
-    if (token) {
-      http.defaults.headers.common.Authorization = `Bearer ${token}`
-    } else {
-      delete http.defaults.headers.common.Authorization
-    }
-  }, [token])
 
   const setToken = useCallback((next: string) => {
     try {
@@ -31,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* almacenamiento no disponible: seguimos sólo con estado en memoria */
     }
+    applyAuthHeader(next)
     setTokenState(next)
   }, [])
 
@@ -40,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* noop */
     }
+    applyAuthHeader(null)
     setTokenState(null)
   }, [])
 

@@ -123,3 +123,67 @@ export interface FinanceSummary {
   total_expenses: number
   by_category: CategorySummary[]
 }
+
+// ── Productividad: Tareas ───────────────────────────────────
+
+export type TaskPriority = 'low' | 'medium' | 'high'
+export type TaskStatus = 'pending' | 'completed'
+
+export interface Task {
+  id: string
+  title: string
+  description: string | null
+  priority: TaskPriority
+  status: TaskStatus
+  due_date: string | null
+  user_id: string
+  created_at: string
+  updated_at: string
+}
+
+/** Cuerpo de `POST /api/tasks` (`CreateTaskDTO`). */
+export interface CreateTaskDTO {
+  title: string
+  description?: string
+  priority?: TaskPriority
+  status?: TaskStatus
+  /** ISO 8601; no puede ser una fecha pasada. */
+  due_date?: string
+}
+
+/** Cuerpo de `PATCH /api/tasks/{id}` (`UpdateTaskDTO`): al menos un campo. */
+export interface UpdateTaskDTO {
+  title?: string
+  description?: string | null
+  priority?: TaskPriority
+  status?: TaskStatus
+  due_date?: string | null
+}
+
+export interface TaskFilters {
+  status?: TaskStatus
+  priority?: TaskPriority
+}
+
+// ── Productividad: Notas multimedia ─────────────────────────
+
+export interface Note {
+  id: string
+  title: string
+  content: string | null
+  audio_url: string | null
+  user_id: string
+  created_at: string
+  updated_at: string
+}
+
+/** Cuerpo de `POST /api/notes` (`CreateNoteDTO`). */
+export interface CreateNoteDTO {
+  title: string
+  content?: string
+  audio_url?: string
+}
+
+export interface AudioUploadResponse {
+  audio_url: string
+}

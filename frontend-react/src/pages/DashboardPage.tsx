@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
-import { useAuth } from '../auth/useAuth'
 import { AccountFormModal } from '../components/AccountFormModal'
 import { AccountList } from '../components/AccountList'
 import { Alert } from '../components/Alert'
@@ -40,9 +38,6 @@ type DeleteTarget =
   | { kind: 'category'; category: Category }
 
 export function DashboardPage() {
-  const { logout } = useAuth()
-  const navigate = useNavigate()
-
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -81,11 +76,6 @@ export function DashboardPage() {
   useEffect(() => {
     void loadData()
   }, [loadData])
-
-  function handleLogout() {
-    logout()
-    navigate('/login', { replace: true })
-  }
 
   async function handleAccountSubmit(values: {
     name: string
@@ -141,25 +131,7 @@ export function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 pb-16">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
-              P
-            </div>
-            <span className="font-semibold text-slate-900">Pulse</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
-
+    <>
       <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
           Panel financiero
@@ -285,6 +257,6 @@ export function DashboardPage() {
           onCancel={() => setDeleteTarget(null)}
         />
       ) : null}
-    </main>
+    </>
   )
 }
