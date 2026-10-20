@@ -27,7 +27,7 @@ function signedAmount(tx: Transaction): string {
 }
 
 function amountClass(tx: Transaction): string {
-  return tx.type === 'income' ? 'text-emerald-600' : 'text-red-600'
+  return tx.type === 'income' ? 'text-ok' : 'text-danger-soft'
 }
 
 function categoryOf(tx: Transaction): string | undefined {
@@ -42,7 +42,7 @@ function labelFor(tx: Transaction): string {
 <template>
   <p
     v-if="transactions.length === 0"
-    class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500"
+    class="pulse-empty px-4 py-6 text-center text-sm text-fg-muted"
   >
     Todavía no registraste movimientos. Usá “+ Nueva transacción” para empezar.
   </p>
@@ -53,11 +53,11 @@ function labelFor(tx: Transaction): string {
       <li
         v-for="tx in sorted"
         :key="tx.id"
-        class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        class="flex items-center justify-between gap-3 pulse-card p-4"
       >
         <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-slate-900">{{ labelFor(tx) }}</p>
-          <p class="mt-0.5 truncate text-xs text-slate-500">
+          <p class="truncate text-sm font-semibold text-fg">{{ labelFor(tx) }}</p>
+          <p class="mt-0.5 truncate text-xs text-fg-muted">
             {{ formatDate(tx.date) }} · {{ accountName.get(tx.account_id) ?? 'Cuenta' }}{{
               categoryOf(tx) ? ` · ${categoryOf(tx)}` : ''
             }}
@@ -71,11 +71,11 @@ function labelFor(tx: Transaction): string {
 
     <!-- Escritorio: tabla -->
     <div
-      class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block"
+      class="hidden overflow-hidden pulse-card md:block"
     >
       <table class="w-full text-left text-sm">
         <thead
-          class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"
+          class="border-b border-line bg-white/5 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-fg-muted"
         >
           <tr>
             <th scope="col" class="px-4 py-3 font-medium">Fecha</th>
@@ -86,10 +86,10 @@ function labelFor(tx: Transaction): string {
             <th scope="col" class="px-4 py-3 text-right font-medium">Monto</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr v-for="tx in sorted" :key="tx.id" class="transition hover:bg-slate-50">
-            <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ formatDate(tx.date) }}</td>
-            <td class="max-w-[14rem] truncate px-4 py-3 text-slate-900">
+        <tbody class="divide-y divide-line">
+          <tr v-for="tx in sorted" :key="tx.id" class="transition hover:bg-white/5">
+            <td class="whitespace-nowrap px-4 py-3 text-fg-soft">{{ formatDate(tx.date) }}</td>
+            <td class="max-w-[14rem] truncate px-4 py-3 text-fg">
               {{ tx.description || '—' }}
             </td>
             <td class="px-4 py-3">
@@ -97,15 +97,15 @@ function labelFor(tx: Transaction): string {
                 :class="[
                   'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
                   tx.type === 'income'
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'bg-red-50 text-red-700',
+                    ? 'bg-ok/10 text-ok'
+                    : 'bg-danger/10 text-danger-soft',
                 ]"
               >
                 {{ tx.type === 'income' ? 'Ingreso' : 'Egreso' }}
               </span>
             </td>
-            <td class="px-4 py-3 text-slate-600">{{ accountName.get(tx.account_id) ?? '—' }}</td>
-            <td class="px-4 py-3 text-slate-600">{{ categoryOf(tx) || '—' }}</td>
+            <td class="px-4 py-3 text-fg-soft">{{ accountName.get(tx.account_id) ?? '—' }}</td>
+            <td class="px-4 py-3 text-fg-soft">{{ categoryOf(tx) || '—' }}</td>
             <td
               :class="[
                 'whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums',

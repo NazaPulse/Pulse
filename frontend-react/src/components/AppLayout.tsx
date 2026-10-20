@@ -1,15 +1,18 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../auth/useAuth'
+import type { IconName } from '../lib/icons'
+import { Icon } from './Icon'
+import { PulseLogo } from './PulseLogo'
 
-const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Finanzas' },
-  { to: '/tasks', label: 'Tareas' },
-  { to: '/notes', label: 'Notas' },
-  { to: '/pomodoro', label: 'Pomodoro' },
+const NAV_ITEMS: { to: string; label: string; icon: IconName }[] = [
+  { to: '/dashboard', label: 'Finanzas', icon: 'finance' },
+  { to: '/tasks', label: 'Tareas', icon: 'tasks' },
+  { to: '/notes', label: 'Notas', icon: 'notes' },
+  { to: '/pomodoro', label: 'Pomodoro', icon: 'timer' },
 ]
 
-/** Estructura común de las rutas protegidas: cabecera, navegación y contenido. */
+/** Estructura común de las rutas protegidas: sidebar (desktop), tab bar (móvil) y contenido. */
 export function AppLayout() {
   const { logout } = useAuth()
   const navigate = useNavigate()
@@ -20,47 +23,87 @@ export function AppLayout() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 pb-16">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
-              P
-            </div>
-            <span className="font-semibold text-slate-900">Pulse</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            Cerrar sesión
-          </button>
+    <div className="min-h-screen">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-canvas/80 backdrop-blur-xl lg:flex">
+        <div className="px-6 pb-8 pt-7">
+          <PulseLogo />
         </div>
-        <nav
-          aria-label="Secciones"
-          className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 sm:px-6"
-        >
+
+        <p className="eyebrow px-6 pb-3 text-fg-dim">Navegación</p>
+        <nav aria-label="Secciones" className="flex flex-1 flex-col gap-1 px-3">
           {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                [
-                  'whitespace-nowrap border-b-2 px-3 pb-2.5 pt-1 text-sm font-medium transition',
-                  isActive
-                    ? 'border-indigo-600 text-indigo-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-800',
-                ].join(' ')
-              }
-            >
+            <NavLink key={item.to} to={item.to} className="nav-link">
+              <Icon name={item.icon} />
               {item.label}
             </NavLink>
           ))}
         </nav>
+
+        <div className="m-3 rounded-2xl border border-line bg-surface/70 p-4">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 animate-blink rounded-full bg-ok" aria-hidden="true" />
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-fg-muted">
+              Sesión activa
+            </span>
+          </div>
+          <svg viewBox="0 0 200 36" fill="none" className="mt-3 h-9 w-full" aria-hidden="true">
+            <path
+              d="M0 18h52l10-14 14 28 12-14h112"
+              stroke="#00F0FF"
+              strokeOpacity=".35"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M0 18h52l10-14 14 28 12-14h112"
+              stroke="#00F0FF"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              pathLength={200}
+              strokeDasharray="26 174"
+              className="animate-ecg drop-shadow-[0_0_3px_#00F0FF]"
+            />
+          </svg>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white/[0.03] px-3 py-2 text-sm font-medium text-fg-soft transition hover:border-danger-soft/50 hover:text-danger-soft"
+          >
+            <Icon name="logout" className="h-4 w-4" />
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-canvas/80 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <PulseLogo compact />
+        <button
+          type="button"
+          onClick={handleLogout}
+          aria-label="Cerrar sesión"
+          className="rounded-lg border border-line-strong bg-white/[0.03] p-2 text-fg-soft transition hover:text-danger-soft"
+        >
+          <Icon name="logout" className="h-5 w-5" />
+        </button>
       </header>
 
-      <Outlet />
-    </main>
+      <div className="pb-28 lg:pb-12 lg:pl-64">
+        <Outlet />
+      </div>
+
+      <nav
+        aria-label="Secciones"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-canvas/90 backdrop-blur-xl lg:hidden"
+      >
+        {NAV_ITEMS.map((item) => (
+          <NavLink key={item.to} to={item.to} className="tab-link">
+            <Icon name={item.icon} className="h-6 w-6" />
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+    </div>
   )
 }

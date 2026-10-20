@@ -8,21 +8,21 @@ type ModalProps = {
 
 export function Modal({ title, onClose, children }: ModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-canvas/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Cerrar"
         onClick={onClose}
         className="absolute inset-0 cursor-default"
       />
-      <div className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:max-w-md sm:rounded-2xl sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+      <div className="pulse-card hud-corners relative z-10 max-h-[92vh] w-full animate-rise overflow-y-auto rounded-b-none rounded-t-2xl bg-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-fg">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-1.5 text-fg-dim transition hover:bg-white/10 hover:text-fg"
           >
             <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
               <path

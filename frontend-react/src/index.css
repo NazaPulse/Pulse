@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './theme.css';
 
 /* Reset ligero adicional al de Tailwind Preflight */
 html,

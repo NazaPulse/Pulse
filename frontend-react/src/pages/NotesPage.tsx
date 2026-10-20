@@ -4,9 +4,10 @@ import { Alert } from '../components/Alert'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { NoteCard } from '../components/Notes/NoteCard'
 import { NoteComposer } from '../components/Notes/NoteComposer'
+import { PageHeader } from '../components/PageHeader'
 import { Spinner } from '../components/Spinner'
 import { deleteNote, extractErrorMessage, getNotes } from '../lib/api'
-import type { Note } from '../lib/types'
+import type { Note } from '../types/productivity'
 
 export function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([])
@@ -49,12 +50,12 @@ export function NotesPage() {
   }
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Notas</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Escribí ideas o grabá notas de voz: el audio se sube y la nota se guarda sola al detener
-        la grabación.
-      </p>
+    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:py-10">
+      <PageHeader
+        eyebrow="03 · Ideas"
+        title="Notas"
+        subtitle="Escribí ideas o grabá notas de voz: el audio se sube y la nota se guarda sola al detener la grabación."
+      />
 
       <div className="mt-6">
         <NoteComposer onCreated={handleCreated} />
@@ -68,10 +69,10 @@ export function NotesPage() {
 
       {loading ? (
         <div className="mt-16 flex justify-center">
-          <Spinner className="h-8 w-8 text-indigo-600" />
+          <Spinner className="h-8 w-8 text-accent" />
         </div>
       ) : notes.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-500">
+        <div className="mt-6 pulse-empty px-6 py-10 text-center text-sm text-fg-muted">
           Todavía no tenés notas.
         </div>
       ) : (

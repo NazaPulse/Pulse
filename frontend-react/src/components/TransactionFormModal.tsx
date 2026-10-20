@@ -28,7 +28,7 @@ export function TransactionFormModal({
   if (accounts.length === 0) {
     return (
       <Modal title="Nueva transacción" onClose={onClose}>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-fg-soft">
           Necesitás al menos una cuenta para registrar movimientos. Creá una desde la sección
           Cuentas.
         </p>

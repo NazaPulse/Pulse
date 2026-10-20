@@ -81,7 +81,7 @@ function handleSubmit() {
 <template>
   <form
     novalidate
-    class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+    class="flex flex-col gap-3 pulse-card p-4 sm:p-5"
     @submit.prevent="handleSubmit"
   >
     <Alert v-if="error" variant="error">{{ error }}</Alert>
@@ -94,7 +94,7 @@ function handleSubmit() {
       placeholder="Título de la nota"
       :maxlength="TITLE_MAX_LENGTH"
       :disabled="busy"
-      class="w-full border-0 border-b border-slate-200 bg-transparent px-0 py-1.5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-500 disabled:text-slate-400"
+      class="w-full border-0 border-b border-line bg-transparent px-0 py-1.5 text-base font-semibold text-fg outline-none placeholder:text-fg-dim focus:border-accent disabled:text-fg-dim"
     />
     <textarea
       v-model="content"
@@ -102,43 +102,43 @@ function handleSubmit() {
       placeholder="Escribí tu nota… o grabá un audio."
       rows="3"
       :disabled="busy"
-      class="w-full resize-y border-0 bg-transparent px-0 py-1 text-sm text-slate-700 outline-none placeholder:text-slate-400 disabled:text-slate-400"
+      class="w-full resize-y border-0 bg-transparent px-0 py-1 text-sm text-fg-soft outline-none placeholder:text-fg-dim disabled:text-fg-dim"
     />
 
     <div
       v-if="recording"
-      class="flex items-center gap-3 rounded-xl bg-red-50 px-3.5 py-2.5"
+      class="flex items-center gap-3 rounded-xl bg-danger/10 px-3.5 py-2.5"
       role="status"
       aria-live="polite"
     >
       <span class="relative flex h-3 w-3">
         <span
-          class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"
+          class="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger-soft opacity-75"
         />
-        <span class="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+        <span class="relative inline-flex h-3 w-3 rounded-full bg-danger" />
       </span>
-      <span class="font-mono text-sm font-semibold tabular-nums text-red-700">
+      <span class="font-mono text-sm font-semibold tabular-nums text-danger-soft">
         {{ formatClock(elapsedMs) }}
       </span>
-      <span class="hidden text-xs text-red-600/80 sm:inline">
+      <span class="hidden text-xs text-danger-soft/80 sm:inline">
         / {{ formatClock(MAX_RECORDING_MS) }} máx.
       </span>
-      <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-red-100" aria-hidden="true">
+      <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-danger/20" aria-hidden="true">
         <div
-          class="h-full rounded-full bg-red-500 transition-[width] duration-75"
+          class="h-full rounded-full bg-danger-soft transition-[width] duration-75"
           :style="{ width: `${Math.round(level * 100)}%` }"
         />
       </div>
       <button
         type="button"
-        class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+        class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-danger-soft transition hover:bg-danger/20"
         @click="recorder.cancel"
       >
         Descartar
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
+        class="inline-flex items-center gap-1.5 rounded-lg bg-danger px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-danger-strong"
         @click="recorder.stop"
       >
         <span class="h-2.5 w-2.5 rounded-sm bg-white" aria-hidden="true" />
@@ -146,16 +146,16 @@ function handleSubmit() {
       </button>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
       <div class="flex flex-wrap items-center gap-2">
-        <p v-if="permission === 'unsupported'" class="text-xs text-slate-500">
+        <p v-if="permission === 'unsupported'" class="text-xs text-fg-muted">
           Tu navegador no permite grabar audio (se requiere HTTPS o localhost).
         </p>
         <button
           v-else-if="permission !== 'granted' && !recording"
           type="button"
           :disabled="busy || status === 'requesting'"
-          class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          class="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-white/[0.03] px-3 py-2 text-sm font-medium text-fg-soft transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
           @click="void recorder.requestPermission()"
         >
           <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4" aria-hidden="true">
@@ -174,7 +174,7 @@ function handleSubmit() {
           v-if="permission !== 'unsupported' && !recording"
           type="button"
           :disabled="busy || status === 'requesting'"
-          class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+          class="inline-flex items-center gap-2 rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-danger-strong disabled:cursor-not-allowed disabled:bg-danger/40"
           @click="void recorder.start()"
         >
           <span class="h-2.5 w-2.5 rounded-full bg-white" aria-hidden="true" />
@@ -184,14 +184,14 @@ function handleSubmit() {
         <button
           v-if="pendingAudio && !busy && !recording"
           type="button"
-          class="rounded-lg px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-accent transition hover:bg-accent/10"
           @click="void saveNote(pendingAudio)"
         >
           Reintentar subida
         </button>
 
-        <span v-if="busy" class="inline-flex items-center gap-2 text-sm text-slate-500" role="status">
-          <Spinner svg-class="h-4 w-4 text-indigo-600" />
+        <span v-if="busy" class="inline-flex items-center gap-2 text-sm text-fg-muted" role="status">
+          <Spinner svg-class="h-4 w-4 text-accent" />
           {{ phase === 'uploading' ? 'Subiendo audio…' : 'Guardando nota…' }}
         </span>
       </div>
@@ -199,7 +199,7 @@ function handleSubmit() {
       <button
         type="submit"
         :disabled="!canSaveText"
-        class="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+        class="rounded-lg bg-accent shadow-glow px-3.5 py-2 text-sm font-semibold text-ink transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-accent/30 disabled:text-ink/50 disabled:shadow-none"
       >
         Guardar nota
       </button>

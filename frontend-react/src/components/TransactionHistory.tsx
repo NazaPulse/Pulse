@@ -12,7 +12,7 @@ function signedAmount(tx: Transaction): string {
 }
 
 function amountClass(tx: Transaction): string {
-  return tx.type === 'income' ? 'text-emerald-600' : 'text-red-600'
+  return tx.type === 'income' ? 'text-ok' : 'text-danger-soft'
 }
 
 function TypeBadge({ tx }: { tx: Transaction }) {
@@ -21,7 +21,7 @@ function TypeBadge({ tx }: { tx: Transaction }) {
     <span
       className={[
         'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-        isIncome ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700',
+        isIncome ? 'bg-ok/10 text-ok' : 'bg-danger/10 text-danger-soft',
       ].join(' ')}
     >
       {isIncome ? 'Ingreso' : 'Egreso'}
@@ -32,7 +32,7 @@ function TypeBadge({ tx }: { tx: Transaction }) {
 export function TransactionHistory({ transactions, accounts, categories }: TransactionHistoryProps) {
   if (transactions.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
+      <p className="pulse-empty px-4 py-6 text-center text-sm text-fg-muted">
         Todavía no registraste movimientos. Usá “+ Nueva transacción” para empezar.
       </p>
     )
@@ -58,11 +58,11 @@ export function TransactionHistory({ transactions, accounts, categories }: Trans
         {sorted.map((tx) => (
           <li
             key={tx.id}
-            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            className="flex items-center justify-between gap-3 pulse-card p-4"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">{labelFor(tx)}</p>
-              <p className="mt-0.5 truncate text-xs text-slate-500">
+              <p className="truncate text-sm font-semibold text-fg">{labelFor(tx)}</p>
+              <p className="mt-0.5 truncate text-xs text-fg-muted">
                 {formatDate(tx.date)} · {accountName.get(tx.account_id) ?? 'Cuenta'}
                 {tx.category_id && categoryName.get(tx.category_id)
                   ? ` · ${categoryName.get(tx.category_id)}`
@@ -77,9 +77,9 @@ export function TransactionHistory({ transactions, accounts, categories }: Trans
       </ul>
 
       {/* Escritorio: tabla */}
-      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+      <div className="hidden overflow-hidden pulse-card md:block">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-line bg-white/5 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-fg-muted">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Fecha</th>
               <th scope="col" className="px-4 py-3 font-medium">Descripción</th>
@@ -89,14 +89,14 @@ export function TransactionHistory({ transactions, accounts, categories }: Trans
               <th scope="col" className="px-4 py-3 text-right font-medium">Monto</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line">
             {sorted.map((tx) => (
-              <tr key={tx.id} className="transition hover:bg-slate-50">
-                <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(tx.date)}</td>
-                <td className="max-w-[14rem] truncate px-4 py-3 text-slate-900">{tx.description || '—'}</td>
+              <tr key={tx.id} className="transition hover:bg-white/5">
+                <td className="whitespace-nowrap px-4 py-3 text-fg-soft">{formatDate(tx.date)}</td>
+                <td className="max-w-[14rem] truncate px-4 py-3 text-fg">{tx.description || '—'}</td>
                 <td className="px-4 py-3"><TypeBadge tx={tx} /></td>
-                <td className="px-4 py-3 text-slate-600">{accountName.get(tx.account_id) ?? '—'}</td>
-                <td className="px-4 py-3 text-slate-600">
+                <td className="px-4 py-3 text-fg-soft">{accountName.get(tx.account_id) ?? '—'}</td>
+                <td className="px-4 py-3 text-fg-soft">
                   {(tx.category_id && categoryName.get(tx.category_id)) || '—'}
                 </td>
                 <td className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${amountClass(tx)}`}>

@@ -29,7 +29,7 @@ export function TransactionCategorySelect(props: TransactionCategorySelectProps)
         ))}
       </Select>
       {isExpense && categories.length === 0 ? (
-        <p className="-mt-2 text-xs text-amber-600">
+        <p className="-mt-2 text-xs text-warn">
           Los egresos requieren un sobre. Creá uno desde la sección Sobres de presupuesto.
         </p>
       ) : null}

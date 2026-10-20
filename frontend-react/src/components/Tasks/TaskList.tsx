@@ -1,5 +1,5 @@
-import { formatDateTime } from '../../lib/format'
-import type { Task } from '../../lib/types'
+import { formatDateTime } from '@shared/format'
+import type { Task } from '../../types/productivity'
 import { PriorityBadge } from './PriorityBadge'
 
 type TaskListProps = {
@@ -23,14 +23,14 @@ export function TaskList({
 }: TaskListProps) {
   if (tasks.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-500">
+      <div className="pulse-empty px-6 py-10 text-center text-sm text-fg-muted">
         {emptyMessage}
       </div>
     )
   }
 
   return (
-    <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <ul className="divide-y divide-line overflow-hidden pulse-card">
       {tasks.map((task) => {
         const completed = task.status === 'completed'
         const toggling = togglingIds.has(task.id)
@@ -47,7 +47,7 @@ export function TaskList({
               disabled={toggling}
               aria-busy={toggling}
               onChange={() => onToggle(task)}
-              className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-slate-300 accent-indigo-600 disabled:cursor-wait disabled:opacity-60"
+              className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-line-strong accent-accent disabled:cursor-wait disabled:opacity-60"
             />
 
             <div className="min-w-0 flex-1">
@@ -56,7 +56,7 @@ export function TaskList({
                   htmlFor={checkboxId}
                   className={[
                     'cursor-pointer break-words text-sm font-medium',
-                    completed ? 'text-slate-400 line-through' : 'text-slate-900',
+                    completed ? 'text-fg-dim line-through' : 'text-fg',
                   ].join(' ')}
                 >
                   {task.title}
@@ -67,7 +67,7 @@ export function TaskList({
                 <p
                   className={[
                     'mt-1 whitespace-pre-line break-words text-sm',
-                    completed ? 'text-slate-400' : 'text-slate-600',
+                    completed ? 'text-fg-dim' : 'text-fg-soft',
                   ].join(' ')}
                 >
                   {task.description}
@@ -77,7 +77,7 @@ export function TaskList({
                 <p
                   className={[
                     'mt-1.5 text-xs',
-                    overdue ? 'font-medium text-red-600' : 'text-slate-500',
+                    overdue ? 'font-medium text-danger-soft' : 'text-fg-muted',
                   ].join(' ')}
                 >
                   {overdue ? 'Vencida · ' : 'Vence '}
@@ -90,7 +90,7 @@ export function TaskList({
               type="button"
               onClick={() => onDelete(task)}
               aria-label={`Eliminar "${task.title}"`}
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+              className="rounded-lg p-1.5 text-fg-dim transition hover:bg-danger/10 hover:text-danger-soft"
             >
               <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                 <path

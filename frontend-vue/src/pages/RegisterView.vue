@@ -63,7 +63,7 @@ const { values, submitting, error, done, canSubmit, handleSubmit } = useRegister
 
     <template #footer>
       ¿Ya tenés cuenta?
-      <RouterLink to="/login" class="font-semibold text-indigo-600 hover:text-indigo-700">
+      <RouterLink to="/login" class="font-semibold text-accent hover:text-accent-hover">
         Iniciá sesión
       </RouterLink>
     </template>

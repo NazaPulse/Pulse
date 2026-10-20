@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Category } from '@shared/types'
 
+import { tintedChipStyle } from '../lib/chartPalette'
+
 defineProps<{ categories: Category[] }>()
 const emit = defineEmits<{ edit: [category: Category]; remove: [category: Category] }>()
 
@@ -18,28 +20,28 @@ function format(value: number): string {
 <template>
   <p
     v-if="categories.length === 0"
-    class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500"
+    class="pulse-empty px-4 py-6 text-center text-sm text-fg-muted"
   >
     Todavía no tenés sobres de presupuesto. Creá el primero con el botón de arriba.
   </p>
 
   <ul v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
     <li
-      v-for="category in categories"
+      v-for="(category, index) in categories"
       :key="category.id"
-      class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      class="flex items-center justify-between gap-3 pulse-card p-4"
     >
       <div class="flex min-w-0 items-center gap-3">
         <span
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase text-white"
-          :style="{ backgroundColor: category.color }"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase"
+          :style="tintedChipStyle(category.color, index)"
         >
           {{ category.icon.slice(0, 2) }}
         </span>
         <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-slate-900">{{ category.name }}</p>
-          <p class="text-xs text-slate-500">{{ category.icon }}</p>
-          <p class="mt-0.5 text-base font-semibold text-slate-900">
+          <p class="truncate text-sm font-semibold text-fg">{{ category.name }}</p>
+          <p class="text-xs text-fg-muted">{{ category.icon }}</p>
+          <p class="mt-0.5 text-base font-semibold text-fg">
             {{ format(category.target_amount) }}
           </p>
         </div>
@@ -49,7 +51,7 @@ function format(value: number): string {
         <button
           type="button"
           :aria-label="`Editar ${category.name}`"
-          class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600"
+          class="rounded-lg p-2 text-fg-dim transition hover:bg-white/10 hover:text-accent"
           @click="emit('edit', category)"
         >
           <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
@@ -65,7 +67,7 @@ function format(value: number): string {
         <button
           type="button"
           :aria-label="`Eliminar ${category.name}`"
-          class="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+          class="rounded-lg p-2 text-fg-dim transition hover:bg-danger/10 hover:text-danger-soft"
           @click="emit('remove', category)"
         >
           <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">

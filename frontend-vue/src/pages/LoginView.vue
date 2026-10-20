@@ -57,7 +57,7 @@ const { values, submitting, error, canSubmit, handleSubmit } = useLoginForm()
       ¿No tenés cuenta?
       <RouterLink
         to="/register"
-        class="font-semibold text-indigo-600 hover:text-indigo-700"
+        class="font-semibold text-accent hover:text-accent-hover"
       >
         Registrate
       </RouterLink>

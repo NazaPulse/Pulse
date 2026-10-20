@@ -23,7 +23,7 @@ const { values, submitting, error, canSubmit, exceedsBalance, handleSubmit } =
 
 <template>
   <Modal title="Nueva transacción" @close="emit('close')">
-    <p v-if="accounts.length === 0" class="text-sm text-slate-600">
+    <p v-if="accounts.length === 0" class="text-sm text-fg-soft">
       Necesitás al menos una cuenta para registrar movimientos. Creá una desde la sección Cuentas.
     </p>
 

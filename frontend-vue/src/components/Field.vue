@@ -28,11 +28,11 @@ const describedBy = computed(() =>
 
 const inputClass = computed(() =>
   [
-    'w-full rounded-lg border bg-white px-3.5 py-2.5 text-slate-900 shadow-sm outline-none transition',
-    'placeholder:text-slate-400',
-    'focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500',
-    'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
-    props.error ? 'border-red-400' : 'border-slate-300',
+    'w-full rounded-lg border bg-canvas/60 px-3.5 py-2.5 text-fg outline-none transition',
+    'placeholder:text-fg-dim',
+    'focus:ring-2 focus:ring-accent/30 focus:border-accent',
+    'disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-fg-dim',
+    props.error ? 'border-danger-soft' : 'border-line-strong',
   ].join(' '),
 )
 
@@ -43,7 +43,7 @@ function onInput(event: Event) {
 
 <template>
   <div class="flex flex-col gap-1.5">
-    <label :for="uid" class="text-sm font-medium text-slate-700">
+    <label :for="uid" class="text-sm font-medium text-fg-soft">
       {{ label }}
     </label>
     <input
@@ -65,10 +65,10 @@ function onInput(event: Event) {
       :class="inputClass"
       @input="onInput"
     />
-    <p v-if="error" :id="`${uid}-error`" class="text-xs text-red-600">
+    <p v-if="error" :id="`${uid}-error`" class="text-xs text-danger-soft">
       {{ error }}
     </p>
-    <p v-else-if="hint" :id="`${uid}-hint`" class="text-xs text-slate-500">
+    <p v-else-if="hint" :id="`${uid}-hint`" class="text-xs text-fg-muted">
       {{ hint }}
     </p>
   </div>
