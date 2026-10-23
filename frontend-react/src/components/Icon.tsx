@@ -1,5 +1,5 @@
-import { ICON_PATHS } from '../lib/icons'
-import type { IconName } from '../lib/icons'
+import { ICON_PATHS } from '@shared/icons'
+import type { IconName } from '@shared/icons'
 
 type IconProps = {
   name: IconName

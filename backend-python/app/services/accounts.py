@@ -37,74 +37,74 @@ def _to_response(account: Account) -> AccountSchema:
     )
 
 
-class AccountsService:
-    def list_for_user(self, db: Session, user_id: uuid.UUID) -> list[AccountSchema]:
-        rows = db.scalars(
-            select(Account)
-            .where(Account.user_id == user_id, Account.is_active.is_(True))
-            .order_by(Account.created_at.asc())
-        ).all()
-        return [_to_response(row) for row in rows]
+def list_for_user(db: Session, user_id: uuid.UUID) -> list[AccountSchema]:
+    rows = db.scalars(
+        select(Account)
+        .where(Account.user_id == user_id, Account.is_active.is_(True))
+        .order_by(Account.created_at.asc())
+    ).all()
+    return [_to_response(row) for row in rows]
 
-    def create(
-        self, db: Session, user_id: uuid.UUID, dto: AccountCreateRequest
-    ) -> AccountSchema:
-        account = Account(
-            user_id=user_id,
-            name=dto.name,
-            type=dto.type.value,
-            balance=dto.initial_balance,
+
+def create(
+    db: Session, user_id: uuid.UUID, dto: AccountCreateRequest
+) -> AccountSchema:
+    account = Account(
+        user_id=user_id,
+        name=dto.name,
+        type=dto.type.value,
+        balance=dto.initial_balance,
+    )
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return _to_response(account)
+
+
+def get_for_user(db: Session, user_id: uuid.UUID, account_id: str) -> AccountSchema:
+    account = _find_owned_or_fail(db, user_id, account_id)
+    return _to_response(account)
+
+
+def update(
+    db: Session,
+    user_id: uuid.UUID,
+    account_id: str,
+    dto: AccountUpdateRequest,
+) -> AccountSchema:
+    account = _find_owned_or_fail(db, user_id, account_id)
+    account.name = dto.name
+    account.type = dto.type.value
+    db.commit()
+    db.refresh(account)
+    return _to_response(account)
+
+
+def remove(db: Session, user_id: uuid.UUID, account_id: str) -> None:
+    account = _find_owned_or_fail(db, user_id, account_id)
+    account.is_active = False
+    db.commit()
+
+
+def _find_owned_or_fail(
+    db: Session, user_id: uuid.UUID, account_id: str
+) -> Account:
+    """Aislamiento por usuario: cualquier operación por `id` filtra siempre
+    por `user_id`. Un `id` de otro usuario (o inexistente, o con formato
+    inválido) responde `404` — nunca revela si el recurso existe para
+    otro usuario."""
+    try:
+        account_uuid = uuid.UUID(str(account_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE) from exc
+
+    account = db.scalar(
+        select(Account).where(
+            Account.id == account_uuid,
+            Account.user_id == user_id,
+            Account.is_active.is_(True),
         )
-        db.add(account)
-        db.commit()
-        db.refresh(account)
-        return _to_response(account)
-
-    def get_for_user(self, db: Session, user_id: uuid.UUID, account_id: str) -> AccountSchema:
-        account = self._find_owned_or_fail(db, user_id, account_id)
-        return _to_response(account)
-
-    def update(
-        self,
-        db: Session,
-        user_id: uuid.UUID,
-        account_id: str,
-        dto: AccountUpdateRequest,
-    ) -> AccountSchema:
-        account = self._find_owned_or_fail(db, user_id, account_id)
-        account.name = dto.name
-        account.type = dto.type.value
-        db.commit()
-        db.refresh(account)
-        return _to_response(account)
-
-    def remove(self, db: Session, user_id: uuid.UUID, account_id: str) -> None:
-        account = self._find_owned_or_fail(db, user_id, account_id)
-        account.is_active = False
-        db.commit()
-
-    def _find_owned_or_fail(
-        self, db: Session, user_id: uuid.UUID, account_id: str
-    ) -> Account:
-        """Aislamiento por usuario: cualquier operación por `id` filtra siempre
-        por `user_id`. Un `id` de otro usuario (o inexistente, o con formato
-        inválido) responde `404` — nunca revela si el recurso existe para
-        otro usuario."""
-        try:
-            account_uuid = uuid.UUID(str(account_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE) from exc
-
-        account = db.scalar(
-            select(Account).where(
-                Account.id == account_uuid,
-                Account.user_id == user_id,
-                Account.is_active.is_(True),
-            )
-        )
-        if account is None:
-            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
-        return account
-
-
-accounts_service = AccountsService()
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
+    return account

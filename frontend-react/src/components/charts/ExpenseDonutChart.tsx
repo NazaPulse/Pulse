@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import type { FinanceSummary } from '@shared/types'
 import { buildDonutSlices, findActive, isEmptyBreakdown } from '@shared/utils/donutChart'
-import { chartColor } from '../../lib/chartPalette'
+import { chartColor } from '@shared/chartPalette'
 import { DonutLegend } from './DonutLegend'
 import { DonutRing } from './DonutRing'
 

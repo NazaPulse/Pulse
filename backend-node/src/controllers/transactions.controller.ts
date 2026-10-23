@@ -1,16 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiCreatedResponse,
-  ApiNotFoundResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ApiEndpoint, ApiProtected } from '../common/decorators/api-endpoint.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { AuthenticatedUser, JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import type { AuthenticatedUser } from '../common/guards/jwt-auth.guard';
 import { CreateTransactionDto } from '../dto/transactions/create-transaction.dto';
 import { ListTransactionsQueryDto } from '../dto/transactions/list-transactions-query.dto';
 import { TransactionResponseDto } from '../dto/transactions/transaction-response.dto';
@@ -21,18 +12,23 @@ import { TransactionsService } from '../services/transactions.service';
  * openapi.yaml. Todas las rutas requieren JWT (`bearerAuth`) y filtran
  * obligatoriamente por el usuario autenticado.
  */
-@ApiTags('Transactions')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@ApiProtected('Transactions')
 @Controller('api/transactions')
 export class TransactionsController {
   constructor(private readonly transactions: TransactionsService) {}
 
   @Get()
-  @ApiOperation({ operationId: 'listTransactions', summary: 'Listar el historial de transacciones del usuario autenticado' })
-  @ApiOkResponse({ type: TransactionResponseDto, isArray: true, description: 'Listado de transacciones del usuario autenticado.' })
-  @ApiBadRequestResponse({ description: 'Query params inválidos.' })
-  @ApiUnauthorizedResponse({ description: 'No se proporcionó un token válido o el token expiró.' })
+  @ApiEndpoint({
+    operationId: 'listTransactions',
+    summary: 'Listar el historial de transacciones del usuario autenticado',
+    returns: {
+      status: 'ok',
+      type: TransactionResponseDto,
+      isArray: true,
+      description: 'Listado de transacciones del usuario autenticado.',
+    },
+    badRequest: 'Query params inválidos.',
+  })
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListTransactionsQueryDto,
@@ -41,12 +37,17 @@ export class TransactionsController {
   }
 
   @Post()
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ operationId: 'createTransaction', summary: 'Registrar un movimiento de dinero' })
-  @ApiCreatedResponse({ type: TransactionResponseDto, description: 'Transacción registrada correctamente.' })
-  @ApiBadRequestResponse({ description: 'Fallo de validación del payload o saldo insuficiente en la cuenta.' })
-  @ApiUnauthorizedResponse({ description: 'No se proporcionó un token válido o el token expiró.' })
-  @ApiNotFoundResponse({ description: 'La cuenta o la categoría no existe o no pertenece al usuario autenticado.' })
+  @ApiEndpoint({
+    operationId: 'createTransaction',
+    summary: 'Registrar un movimiento de dinero',
+    returns: {
+      status: 'created',
+      type: TransactionResponseDto,
+      description: 'Transacción registrada correctamente.',
+    },
+    badRequest: 'Fallo de validación del payload o saldo insuficiente en la cuenta.',
+    notFound: 'La cuenta o la categoría no existe o no pertenece al usuario autenticado.',
+  })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateTransactionDto,

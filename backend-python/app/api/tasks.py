@@ -26,7 +26,7 @@ from app.schemas.productivity import (
     TaskStatus,
     TaskUpdateRequest,
 )
-from app.services.tasks import tasks_service
+from app.services import tasks as tasks_service
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 

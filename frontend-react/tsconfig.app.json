@@ -23,5 +23,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "../frontend-shared"]
+  "include": ["src", "../frontend-shared"],
+  "exclude": ["../frontend-shared/viteShared.ts"]
 }

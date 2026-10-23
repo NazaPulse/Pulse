@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { formatDateTime } from '@shared/format'
+import { dueLabel } from '@shared/tasks'
 
 import type { Task } from '../../types/productivity'
+import IconButton from '../IconButton.vue'
 import PriorityBadge from './PriorityBadge.vue'
 
 defineProps<{
@@ -14,28 +15,14 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{ toggle: [task: Task]; delete: [task: Task] }>()
-
-function isOverdue(task: Task, now: number): boolean {
-  return (
-    task.status !== 'completed' &&
-    task.due_date !== null &&
-    new Date(task.due_date).getTime() < now
-  )
-}
 </script>
 
 <template>
-  <div
-    v-if="tasks.length === 0"
-    class="pulse-empty px-6 py-10 text-center text-sm text-fg-muted"
-  >
+  <div v-if="tasks.length === 0" class="pulse-empty px-6 py-10 text-center text-sm text-fg-muted">
     {{ emptyMessage }}
   </div>
 
-  <ul
-    v-else
-    class="divide-y divide-line overflow-hidden pulse-card"
-  >
+  <ul v-else class="divide-y divide-line overflow-hidden pulse-card">
     <li v-for="task in tasks" :key="task.id" class="flex items-start gap-3 px-4 py-3.5 sm:px-5">
       <input
         :id="`task-${task.id}`"
@@ -70,32 +57,22 @@ function isOverdue(task: Task, now: number): boolean {
           {{ task.description }}
         </p>
         <p
-          v-if="task.due_date"
+          v-if="dueLabel(task, now)"
           :class="[
             'mt-1.5 text-xs',
-            isOverdue(task, now) ? 'font-medium text-danger-soft' : 'text-fg-muted',
+            dueLabel(task, now)?.overdue ? 'font-medium text-danger-soft' : 'text-fg-muted',
           ]"
         >
-          {{ isOverdue(task, now) ? 'Vencida · ' : 'Vence ' }}{{ formatDateTime(task.due_date) }}
+          {{ dueLabel(task, now)?.text }}
         </p>
       </div>
 
-      <button
-        type="button"
-        :aria-label="`Eliminar &quot;${task.title}&quot;`"
-        class="rounded-lg p-1.5 text-fg-dim transition hover:bg-danger/10 hover:text-danger-soft"
+      <IconButton
+        icon="trash"
+        :label="`Eliminar &quot;${task.title}&quot;`"
+        tone="danger"
         @click="emit('delete', task)"
-      >
-        <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
-          <path
-            d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4h6v3"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
+      />
     </li>
   </ul>
 </template>

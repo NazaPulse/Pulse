@@ -1,31 +1,8 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-  Put,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiCreatedResponse,
-  ApiExcludeEndpoint,
-  ApiNoContentResponse,
-  ApiNotFoundResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ApiEndpoint, ApiProtected } from '../common/decorators/api-endpoint.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { AuthenticatedUser, JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import type { AuthenticatedUser } from '../common/guards/jwt-auth.guard';
 import { CreateTaskDto } from '../dto/tasks/create-task.dto';
 import { ListTasksQueryDto } from '../dto/tasks/list-tasks-query.dto';
 import { TaskResponseDto } from '../dto/tasks/task-response.dto';
@@ -37,56 +14,57 @@ import { TasksService } from '../services/tasks.service';
  * openapi.yaml. Todas las rutas requieren JWT y filtran por el usuario
  * autenticado.
  */
-@ApiTags('Tasks')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@ApiProtected('Tasks')
 @Controller('api/tasks')
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
   @Get()
-  @ApiOperation({ operationId: 'listTasks', summary: 'Listar las tareas del usuario autenticado' })
-  @ApiOkResponse({ type: TaskResponseDto, isArray: true, description: 'Listado de tareas del usuario autenticado.' })
-  @ApiBadRequestResponse({ description: 'Fallo de validación de los filtros.' })
-  @ApiUnauthorizedResponse({ description: 'No se proporcionó un token válido o el token expiró.' })
-  list(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListTasksQueryDto,
-  ): Promise<TaskResponseDto[]> {
+  @ApiEndpoint({
+    operationId: 'listTasks',
+    summary: 'Listar las tareas del usuario autenticado',
+    returns: {
+      status: 'ok',
+      type: TaskResponseDto,
+      isArray: true,
+      description: 'Listado de tareas del usuario autenticado.',
+    },
+    badRequest: 'Fallo de validación de los filtros.',
+  })
+  list(@CurrentUser() user: AuthenticatedUser, @Query() query: ListTasksQueryDto): Promise<TaskResponseDto[]> {
     return this.tasks.findAllForUser(user.id, query);
   }
 
   @Post()
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ operationId: 'createTask', summary: 'Crear una nueva tarea' })
-  @ApiCreatedResponse({ type: TaskResponseDto, description: 'Tarea creada correctamente.' })
-  @ApiBadRequestResponse({ description: 'Fallo de validación de campos del payload.' })
-  @ApiUnauthorizedResponse({ description: 'No se proporcionó un token válido o el token expiró.' })
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateTaskDto,
-  ): Promise<TaskResponseDto> {
+  @ApiEndpoint({
+    operationId: 'createTask',
+    summary: 'Crear una nueva tarea',
+    returns: { status: 'created', type: TaskResponseDto, description: 'Tarea creada correctamente.' },
+    badRequest: true,
+  })
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateTaskDto): Promise<TaskResponseDto> {
     return this.tasks.create(user.id, dto);
   }
 
   @Get(':id')
-  @ApiOperation({ operationId: 'getTaskById', summary: 'Obtener una tarea por id' })
-  @ApiOkResponse({ type: TaskResponseDto, description: 'Tarea encontrada.' })
-  @ApiUnauthorizedResponse({ description: 'No se proporcionó un token válido o el token expiró.' })
-  @ApiNotFoundResponse({ description: 'El recurso solicitado no existe o no pertenece al usuario autenticado.' })
-  findOne(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ): Promise<TaskResponseDto> {
+  @ApiEndpoint({
+    operationId: 'getTaskById',
+    summary: 'Obtener una tarea por id',
+    returns: { status: 'ok', type: TaskResponseDto, description: 'Tarea encontrada.' },
+    notFound: true,
+  })
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<TaskResponseDto> {
     return this.tasks.findOneForUser(user.id, id);
   }
 
   @Patch(':id')
-  @ApiOperation({ operationId: 'updateTask', summary: 'Actualizar parcialmente una tarea existente' })
-  @ApiOkResponse({ type: TaskResponseDto, description: 'Tarea actualizada correctamente.' })
-  @ApiBadRequestResponse({ description: 'Fallo de validación de campos del payload.' })
-  @ApiUnauthorizedResponse({ description: 'No se proporcionó un token válido o el token expiró.' })
-  @ApiNotFoundResponse({ description: 'El recurso solicitado no existe o no pertenece al usuario autenticado.' })
+  @ApiEndpoint({
+    operationId: 'updateTask',
+    summary: 'Actualizar parcialmente una tarea existente',
+    returns: { status: 'ok', type: TaskResponseDto, description: 'Tarea actualizada correctamente.' },
+    badRequest: true,
+    notFound: true,
+  })
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
@@ -110,11 +88,12 @@ export class TasksController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ operationId: 'deleteTask', summary: 'Eliminar una tarea' })
-  @ApiNoContentResponse({ description: 'Tarea eliminada correctamente. No retorna contenido.' })
-  @ApiUnauthorizedResponse({ description: 'No se proporcionó un token válido o el token expiró.' })
-  @ApiNotFoundResponse({ description: 'El recurso solicitado no existe o no pertenece al usuario autenticado.' })
+  @ApiEndpoint({
+    operationId: 'deleteTask',
+    summary: 'Eliminar una tarea',
+    returns: { status: 'noContent', description: 'Tarea eliminada correctamente. No retorna contenido.' },
+    notFound: true,
+  })
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<void> {
     return this.tasks.remove(user.id, id);
   }

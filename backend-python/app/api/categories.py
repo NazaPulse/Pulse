@@ -12,7 +12,7 @@ from app.api.deps import CurrentUser, get_current_user
 from app.db.session import get_db
 from app.schemas.auth import ErrorResponse
 from app.schemas.finance import Category, CategoryCreateRequest, CategoryUpdateRequest
-from app.services.categories import categories_service
+from app.services import categories as categories_service
 
 router = APIRouter(prefix="/api/categories", tags=["Categories"])
 

@@ -1,8 +1,7 @@
-import { Alert } from '../components/Alert'
 import { DashboardContent } from '../components/dashboard/DashboardContent'
 import { DashboardModals } from '../components/dashboard/DashboardModals'
+import { ErrorNotice, LoadingBlock } from '../components/Feedback'
 import { PageHeader } from '../components/PageHeader'
-import { Spinner } from '../components/Spinner'
 import { useDashboardModals } from '../hooks/useDashboardModals'
 import { useFinanceData } from '../hooks/useFinanceData'
 
@@ -18,16 +17,10 @@ export function DashboardPage() {
         subtitle="Tus métricas, cuentas, sobres de presupuesto y movimientos."
       />
 
-      {error ? (
-        <div className="mt-6">
-          <Alert variant="error">{error}</Alert>
-        </div>
-      ) : null}
+      <ErrorNotice message={error} />
 
       {loading ? (
-        <div className="mt-16 flex justify-center">
-          <Spinner className="h-8 w-8 text-accent" />
-        </div>
+        <LoadingBlock />
       ) : (
         <DashboardContent data={data} modals={modals} />
       )}

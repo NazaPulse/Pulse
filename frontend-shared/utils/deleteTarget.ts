@@ -8,6 +8,11 @@ export function deleteDialogTitle(target: DeleteTarget): string {
   return target.kind === 'account' ? 'Eliminar cuenta' : 'Eliminar sobre'
 }
 
+/** Texto de confirmación para cualquier registro con nombre o título. */
+export function deleteDialogDescriptionFor(name: string): string {
+  return `¿Seguro que querés eliminar "${name}"? Esta acción no se puede deshacer.`
+}
+
 export function deleteDialogDescription(target: DeleteTarget): string {
-  return `¿Seguro que querés eliminar "${target.item.name}"? Esta acción no se puede deshacer.`
+  return deleteDialogDescriptionFor(target.item.name)
 }

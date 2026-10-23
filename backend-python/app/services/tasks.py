@@ -59,67 +59,68 @@ def _apply_nullable_fields(task: Task, dto: TaskUpdateRequest, sent: set[str]) -
             setattr(task, field, getattr(dto, field))
 
 
-class TasksService:
-    def list_for_user(
-        self, db: Session, user_id: uuid.UUID, filters: TaskFilters
-    ) -> list[TaskSchema]:
-        stmt = select(Task).where(Task.user_id == user_id)
-        if filters.status is not None:
-            stmt = stmt.where(Task.status == filters.status.value)
-        if filters.priority is not None:
-            stmt = stmt.where(Task.priority == filters.priority.value)
-        rows = db.scalars(stmt.order_by(Task.created_at.desc())).all()
-        return [_to_response(row) for row in rows]
-
-    def create(self, db: Session, user_id: uuid.UUID, dto: TaskCreateRequest) -> TaskSchema:
-        task = Task(
-            user_id=user_id,
-            title=dto.title,
-            description=dto.description,
-            priority=(dto.priority or TaskPriority.MEDIUM).value,
-            status=(dto.status or TaskStatus.PENDING).value,
-            due_date=dto.due_date,
-        )
-        db.add(task)
-        db.commit()
-        db.refresh(task)
-        return _to_response(task)
-
-    def get_for_user(self, db: Session, user_id: uuid.UUID, task_id: str) -> TaskSchema:
-        return _to_response(self._find_owned_or_fail(db, user_id, task_id))
-
-    def update(
-        self, db: Session, user_id: uuid.UUID, task_id: str, dto: TaskUpdateRequest
-    ) -> TaskSchema:
-        """Edición parcial: solo se modifican los campos presentes en el payload."""
-        sent = dto.model_fields_set
-        if not sent:
-            raise HTTPException(status_code=400, detail=EMPTY_UPDATE_MESSAGE)
-
-        task = self._find_owned_or_fail(db, user_id, task_id)
-        _apply_required_fields(task, dto, sent)
-        _apply_nullable_fields(task, dto, sent)
-        db.commit()
-        db.refresh(task)
-        return _to_response(task)
-
-    def remove(self, db: Session, user_id: uuid.UUID, task_id: str) -> None:
-        task = self._find_owned_or_fail(db, user_id, task_id)
-        db.delete(task)
-        db.commit()
-
-    def _find_owned_or_fail(self, db: Session, user_id: uuid.UUID, task_id: str) -> Task:
-        """Aislamiento por usuario: un `id` de otro usuario (o inexistente, o con
-        formato inválido) responde `404` — nunca revela si existe para otro."""
-        try:
-            task_uuid = uuid.UUID(str(task_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE) from exc
-
-        task = db.scalar(select(Task).where(Task.id == task_uuid, Task.user_id == user_id))
-        if task is None:
-            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
-        return task
+def list_for_user(
+    db: Session, user_id: uuid.UUID, filters: TaskFilters
+) -> list[TaskSchema]:
+    stmt = select(Task).where(Task.user_id == user_id)
+    if filters.status is not None:
+        stmt = stmt.where(Task.status == filters.status.value)
+    if filters.priority is not None:
+        stmt = stmt.where(Task.priority == filters.priority.value)
+    rows = db.scalars(stmt.order_by(Task.created_at.desc())).all()
+    return [_to_response(row) for row in rows]
 
 
-tasks_service = TasksService()
+def create(db: Session, user_id: uuid.UUID, dto: TaskCreateRequest) -> TaskSchema:
+    task = Task(
+        user_id=user_id,
+        title=dto.title,
+        description=dto.description,
+        priority=(dto.priority or TaskPriority.MEDIUM).value,
+        status=(dto.status or TaskStatus.PENDING).value,
+        due_date=dto.due_date,
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return _to_response(task)
+
+
+def get_for_user(db: Session, user_id: uuid.UUID, task_id: str) -> TaskSchema:
+    return _to_response(_find_owned_or_fail(db, user_id, task_id))
+
+
+def update(
+    db: Session, user_id: uuid.UUID, task_id: str, dto: TaskUpdateRequest
+) -> TaskSchema:
+    """Edición parcial: solo se modifican los campos presentes en el payload."""
+    sent = dto.model_fields_set
+    if not sent:
+        raise HTTPException(status_code=400, detail=EMPTY_UPDATE_MESSAGE)
+
+    task = _find_owned_or_fail(db, user_id, task_id)
+    _apply_required_fields(task, dto, sent)
+    _apply_nullable_fields(task, dto, sent)
+    db.commit()
+    db.refresh(task)
+    return _to_response(task)
+
+
+def remove(db: Session, user_id: uuid.UUID, task_id: str) -> None:
+    task = _find_owned_or_fail(db, user_id, task_id)
+    db.delete(task)
+    db.commit()
+
+
+def _find_owned_or_fail(db: Session, user_id: uuid.UUID, task_id: str) -> Task:
+    """Aislamiento por usuario: un `id` de otro usuario (o inexistente, o con
+    formato inválido) responde `404` — nunca revela si existe para otro."""
+    try:
+        task_uuid = uuid.UUID(str(task_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE) from exc
+
+    task = db.scalar(select(Task).where(Task.id == task_uuid, Task.user_id == user_id))
+    if task is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
+    return task

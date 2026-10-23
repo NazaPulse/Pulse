@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ECG_PATHS } from '@shared/uiConfig'
+import EcgLine from './EcgLine.vue'
+
 /** Marca "PULSE" con el trazo electrocardiográfico iluminado en cian neón. */
 withDefaults(
   defineProps<{
@@ -14,26 +17,17 @@ withDefaults(
     <span
       class="relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-accent/40 bg-gradient-to-br from-panel to-canvas shadow-glow-sm"
     >
-      <svg viewBox="0 0 24 24" fill="none" class="h-7 w-7 overflow-visible" aria-hidden="true">
-        <path
-          d="M2 12h5l2.5-6 4 12 2.5-6H22"
-          stroke="#00F0FF"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="drop-shadow-[0_0_4px_#00F0FF]"
-        />
-        <path
-          d="M2 12h5l2.5-6 4 12 2.5-6H22"
-          stroke="#FFFFFF"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          pathLength="200"
-          stroke-dasharray="14 186"
-          class="animate-ecg"
-        />
-      </svg>
+      <EcgLine
+        :d="ECG_PATHS.logo"
+        view-box="0 0 24 24"
+        svg-class="h-7 w-7 overflow-visible"
+        :stroke-width="2"
+        :base-opacity="1"
+        base-class="drop-shadow-[0_0_4px_#00F0FF]"
+        runner-color="#FFFFFF"
+        dash="14 186"
+        runner-class=""
+      />
     </span>
     <span class="flex flex-col leading-none">
       <span

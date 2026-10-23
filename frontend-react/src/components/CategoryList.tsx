@@ -1,12 +1,7 @@
+import { tintedChipStyle } from '@shared/chartPalette'
+import { currencyFormatter } from '@shared/format'
 import type { Category } from '@shared/types'
-
-import { tintedChipStyle } from '../lib/chartPalette'
-
-const currencyFormatter = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  maximumFractionDigits: 2,
-})
+import { RowActions } from './IconButton'
 
 type CategoryListProps = {
   categories: Category[]
@@ -26,10 +21,7 @@ export function CategoryList({ categories, onEdit, onDelete }: CategoryListProps
   return (
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {categories.map((category, index) => (
-        <li
-          key={category.id}
-          className="flex items-center justify-between gap-3 pulse-card p-4"
-        >
+        <li key={category.id} className="flex items-center justify-between gap-3 pulse-card p-4">
           <div className="flex min-w-0 items-center gap-3">
             <span
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase"
@@ -45,41 +37,7 @@ export function CategoryList({ categories, onEdit, onDelete }: CategoryListProps
               </p>
             </div>
           </div>
-
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onEdit(category)}
-              aria-label={`Editar ${category.name}`}
-              className="rounded-lg p-2 text-fg-dim transition hover:bg-white/10 hover:text-accent"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-                <path
-                  d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(category)}
-              aria-label={`Eliminar ${category.name}`}
-              className="rounded-lg p-2 text-fg-dim transition hover:bg-danger/10 hover:text-danger-soft"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-                <path
-                  d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-.7 12.1A2 2 0 0 1 14.3 21H9.7a2 2 0 0 1-2-1.9L7 7"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
+          <RowActions name={category.name} onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
         </li>
       ))}
     </ul>

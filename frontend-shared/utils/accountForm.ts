@@ -7,6 +7,13 @@ export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'cash', label: 'Efectivo' },
 ]
 
+export const ACCOUNT_TYPE_LABEL = Object.fromEntries(ACCOUNT_TYPES.map((t) => [t.value, t.label])) as Record<
+  AccountType,
+  string
+>
+
+export const ACCOUNT_TYPE_ICON: Record<AccountType, string> = { bank: '🏦', wallet: '📱', cash: '💵' }
+
 export interface AccountFormValues {
   name: string
   type: AccountType

@@ -2,7 +2,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../auth/useAuth'
-import { loginRequest } from '../lib/api'
+import { api } from '../lib/api'
 import { buildLoginPayload, EMPTY_LOGIN_VALUES, isLoginValid } from '@shared/utils/loginForm'
 import { useFormValues } from './useFormValues'
 import { useSubmission } from './useSubmission'
@@ -15,7 +15,7 @@ export function useLoginForm() {
   const canSubmit = isLoginValid(values) && !submitting
 
   async function loginAndEnter() {
-    const { access_token } = await loginRequest(buildLoginPayload(values))
+    const { access_token } = await api.loginRequest(buildLoginPayload(values))
     setToken(access_token)
     navigate('/dashboard', { replace: true })
   }

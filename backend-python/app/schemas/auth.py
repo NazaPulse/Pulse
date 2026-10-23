@@ -44,7 +44,7 @@ class UserPublic(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    """`LoginResponse` — respuesta `200` de login: `{ "access_token": "string" }`."""
+    """`LoginResponse` — respuesta `200` de login (un único campo `access_token`)."""
 
     model_config = ConfigDict(extra="forbid")
 

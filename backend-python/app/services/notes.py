@@ -99,52 +99,53 @@ def save_audio(file: UploadFile | None) -> str:
     return f"{AUDIO_PUBLIC_PREFIX}/{filename}"
 
 
-class NotesService:
-    def list_for_user(self, db: Session, user_id: uuid.UUID) -> list[NoteSchema]:
-        rows = db.scalars(
-            select(Note).where(Note.user_id == user_id).order_by(Note.created_at.desc())
-        ).all()
-        return [_to_response(row) for row in rows]
-
-    def create(self, db: Session, user_id: uuid.UUID, dto: NoteCreateRequest) -> NoteSchema:
-        note = Note(user_id=user_id, title=dto.title, content=dto.content, audio_url=dto.audio_url)
-        db.add(note)
-        db.commit()
-        db.refresh(note)
-        return _to_response(note)
-
-    def get_for_user(self, db: Session, user_id: uuid.UUID, note_id: str) -> NoteSchema:
-        return _to_response(self._find_owned_or_fail(db, user_id, note_id))
-
-    def update(
-        self, db: Session, user_id: uuid.UUID, note_id: str, dto: NoteUpdateRequest
-    ) -> NoteSchema:
-        """Reemplazo total: `content`/`audio_url` omitidos o `null` quedan vacíos."""
-        note = self._find_owned_or_fail(db, user_id, note_id)
-        note.title = dto.title
-        note.content = dto.content
-        note.audio_url = dto.audio_url
-        db.commit()
-        db.refresh(note)
-        return _to_response(note)
-
-    def remove(self, db: Session, user_id: uuid.UUID, note_id: str) -> None:
-        note = self._find_owned_or_fail(db, user_id, note_id)
-        db.delete(note)
-        db.commit()
-
-    def _find_owned_or_fail(self, db: Session, user_id: uuid.UUID, note_id: str) -> Note:
-        """Aislamiento por usuario: un `id` de otro usuario (o inexistente, o con
-        formato inválido) responde `404` — nunca revela si existe para otro."""
-        try:
-            note_uuid = uuid.UUID(str(note_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE) from exc
-
-        note = db.scalar(select(Note).where(Note.id == note_uuid, Note.user_id == user_id))
-        if note is None:
-            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
-        return note
+def list_for_user(db: Session, user_id: uuid.UUID) -> list[NoteSchema]:
+    rows = db.scalars(
+        select(Note).where(Note.user_id == user_id).order_by(Note.created_at.desc())
+    ).all()
+    return [_to_response(row) for row in rows]
 
 
-notes_service = NotesService()
+def create(db: Session, user_id: uuid.UUID, dto: NoteCreateRequest) -> NoteSchema:
+    note = Note(user_id=user_id, title=dto.title, content=dto.content, audio_url=dto.audio_url)
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return _to_response(note)
+
+
+def get_for_user(db: Session, user_id: uuid.UUID, note_id: str) -> NoteSchema:
+    return _to_response(_find_owned_or_fail(db, user_id, note_id))
+
+
+def update(
+    db: Session, user_id: uuid.UUID, note_id: str, dto: NoteUpdateRequest
+) -> NoteSchema:
+    """Reemplazo total: `content`/`audio_url` omitidos o `null` quedan vacíos."""
+    note = _find_owned_or_fail(db, user_id, note_id)
+    note.title = dto.title
+    note.content = dto.content
+    note.audio_url = dto.audio_url
+    db.commit()
+    db.refresh(note)
+    return _to_response(note)
+
+
+def remove(db: Session, user_id: uuid.UUID, note_id: str) -> None:
+    note = _find_owned_or_fail(db, user_id, note_id)
+    db.delete(note)
+    db.commit()
+
+
+def _find_owned_or_fail(db: Session, user_id: uuid.UUID, note_id: str) -> Note:
+    """Aislamiento por usuario: un `id` de otro usuario (o inexistente, o con
+    formato inválido) responde `404` — nunca revela si existe para otro."""
+    try:
+        note_uuid = uuid.UUID(str(note_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE) from exc
+
+    note = db.scalar(select(Note).where(Note.id == note_uuid, Note.user_id == user_id))
+    if note is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
+    return note

@@ -1,11 +1,5 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-import { NumericColumnTransformer } from '../common/numeric-column.transformer';
+import { Column, Entity } from 'typeorm';
+import { OwnedEntity, MoneyColumn } from './base.entity';
 
 /**
  * Mapea la tabla `categories` definida en init.sql (raíz del repo).
@@ -16,23 +10,11 @@ import { NumericColumnTransformer } from '../common/numeric-column.transformer';
  * la Issue #8 para poder cumplir el contrato publicado en la Issue #7.
  */
 @Entity({ name: 'categories' })
-export class Category {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ name: 'user_id', type: 'uuid' })
-  userId!: string;
-
+export class Category extends OwnedEntity {
   @Column({ type: 'varchar', length: 255 })
   name!: string;
 
-  @Column({
-    name: 'monthly_limit',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    transformer: new NumericColumnTransformer(),
-  })
+  @MoneyColumn('monthly_limit')
   targetAmount!: number;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
@@ -40,10 +22,4 @@ export class Category {
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   icon!: string | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
 }

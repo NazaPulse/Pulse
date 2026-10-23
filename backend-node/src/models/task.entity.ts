@@ -1,10 +1,5 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity } from 'typeorm';
+import { OwnedEntity } from './base.entity';
 
 export enum TaskPriority {
   LOW = 'low',
@@ -22,13 +17,7 @@ export enum TaskStatus {
  * No debe alterar el esquema: `synchronize` está deshabilitado.
  */
 @Entity({ name: 'tasks' })
-export class Task {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ name: 'user_id', type: 'uuid' })
-  userId!: string;
-
+export class Task extends OwnedEntity {
   @Column({ type: 'varchar', length: 200 })
   title!: string;
 
@@ -43,10 +32,4 @@ export class Task {
 
   @Column({ name: 'due_date', type: 'timestamptz', nullable: true })
   dueDate!: Date | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
 }

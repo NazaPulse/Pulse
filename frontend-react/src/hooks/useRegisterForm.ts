@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { registerRequest } from '../lib/api'
+import { api } from '../lib/api'
 import {
   buildRegisterPayload,
   EMPTY_REGISTER_VALUES,
@@ -20,7 +20,7 @@ export function useRegisterForm() {
   const canSubmit = isRegisterValid(values) && !submitting && !done
 
   async function registerAndRedirect() {
-    await registerRequest(buildRegisterPayload(values))
+    await api.registerRequest(buildRegisterPayload(values))
     setDone(true)
     window.setTimeout(() => {
       navigate('/login', { replace: true, state: { registered: true } })

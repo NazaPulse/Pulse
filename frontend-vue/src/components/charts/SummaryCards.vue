@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { currencyFormatter } from '@shared/format'
 import type { FinanceSummary } from '@shared/types'
 
-import type { IconName } from '../../lib/icons'
+import type { IconName } from '@shared/icons'
 import Icon from '../Icon.vue'
 
 const props = defineProps<{ summary: FinanceSummary }>()

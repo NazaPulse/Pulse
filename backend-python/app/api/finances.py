@@ -10,7 +10,7 @@ from app.api.deps import CurrentUser, get_current_user
 from app.db.session import get_db
 from app.schemas.auth import ErrorResponse
 from app.schemas.transaction import FinancesSummary
-from app.services.finances import finances_service
+from app.services import finances as finances_service
 
 router = APIRouter(prefix="/api/finances", tags=["Finances"])
 

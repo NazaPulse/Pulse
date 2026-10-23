@@ -12,8 +12,10 @@ const SIZE = 280
 const STROKE = 12
 const RADIUS = (SIZE - STROKE) / 2 - 14
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
+const CENTER = SIZE / 2
 
 const clamped = computed(() => Math.min(1, Math.max(0, props.progress)))
+const offset = computed(() => CIRCUMFERENCE * (1 - clamped.value))
 </script>
 
 <template>
@@ -26,41 +28,40 @@ const clamped = computed(() => Math.min(1, Math.max(0, props.progress)))
       aria-valuemax="100"
       :aria-valuenow="Math.round(clamped * 100)"
     >
-      <circle
-        :cx="SIZE / 2"
-        :cy="SIZE / 2"
-        :r="RADIUS + STROKE / 2 + 7"
-        fill="none"
-        stroke="#7B8AA0"
-        stroke-opacity=".4"
-        stroke-width="1.5"
-        stroke-dasharray="1 7"
-        stroke-linecap="round"
-      />
-      <circle
-        :cx="SIZE / 2"
-        :cy="SIZE / 2"
-        :r="RADIUS"
-        fill="none"
-        stroke="currentColor"
-        :stroke-width="STROKE"
-        class="text-line-strong"
-      />
-      <circle
-        :cx="SIZE / 2"
-        :cy="SIZE / 2"
-        :r="RADIUS"
-        fill="none"
-        stroke="currentColor"
-        :stroke-width="STROKE"
-        stroke-linecap="round"
-        :stroke-dasharray="CIRCUMFERENCE"
-        :stroke-dashoffset="CIRCUMFERENCE * (1 - clamped)"
-        :class="[
-          colorClass,
-          'drop-shadow-[0_0_8px_currentColor] transition-[stroke-dashoffset] duration-300 ease-linear',
-        ]"
-      />
+      <g fill="none">
+        <circle
+          :cx="CENTER"
+          :cy="CENTER"
+          :r="RADIUS + STROKE / 2 + 7"
+          stroke="#7B8AA0"
+          stroke-opacity=".4"
+          stroke-width="1.5"
+          stroke-dasharray="1 7"
+          stroke-linecap="round"
+        />
+        <circle
+          :cx="CENTER"
+          :cy="CENTER"
+          :r="RADIUS"
+          stroke="currentColor"
+          :stroke-width="STROKE"
+          class="text-line-strong"
+        />
+        <circle
+          :cx="CENTER"
+          :cy="CENTER"
+          :r="RADIUS"
+          stroke="currentColor"
+          :stroke-width="STROKE"
+          stroke-linecap="round"
+          :stroke-dasharray="CIRCUMFERENCE"
+          :stroke-dashoffset="offset"
+          :class="[
+            colorClass,
+            'drop-shadow-[0_0_8px_currentColor] transition-[stroke-dashoffset] duration-300 ease-linear',
+          ]"
+        />
+      </g>
     </svg>
     <div class="absolute inset-0 flex flex-col items-center justify-center">
       <slot />
