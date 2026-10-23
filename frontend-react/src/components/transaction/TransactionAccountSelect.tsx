@@ -30,7 +30,7 @@ export function TransactionAccountSelect(props: TransactionAccountSelectProps) {
         ))}
       </Select>
       {exceedsBalance ? (
-        <p className="-mt-2 text-xs text-amber-600">
+        <p className="-mt-2 text-xs text-warn">
           El monto supera el saldo disponible de la cuenta.
         </p>
       ) : null}

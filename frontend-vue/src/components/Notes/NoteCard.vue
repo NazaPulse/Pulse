@@ -10,16 +10,16 @@ const emit = defineEmits<{ delete: [note: Note] }>()
 </script>
 
 <template>
-  <article class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+  <article class="flex flex-col gap-3 pulse-card p-4">
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0">
-        <h3 class="break-words font-semibold text-slate-900">{{ note.title }}</h3>
-        <p class="mt-0.5 text-xs text-slate-400">{{ formatDateTime(note.created_at) }}</p>
+        <h3 class="break-words font-semibold text-fg">{{ note.title }}</h3>
+        <p class="mt-0.5 text-xs text-fg-dim">{{ formatDateTime(note.created_at) }}</p>
       </div>
       <button
         type="button"
         :aria-label="`Eliminar &quot;${note.title}&quot;`"
-        class="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+        class="rounded-lg p-1.5 text-fg-dim transition hover:bg-danger/10 hover:text-danger-soft"
         @click="emit('delete', note)"
       >
         <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
@@ -34,7 +34,7 @@ const emit = defineEmits<{ delete: [note: Note] }>()
       </button>
     </div>
 
-    <p v-if="note.content" class="whitespace-pre-line break-words text-sm text-slate-600">
+    <p v-if="note.content" class="whitespace-pre-line break-words text-sm text-fg-soft">
       {{ note.content }}
     </p>
 

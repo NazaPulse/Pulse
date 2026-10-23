@@ -6,8 +6,8 @@ type AlertProps = {
 }
 
 const STYLES: Record<AlertProps['variant'], string> = {
-  error: 'border-red-200 bg-red-50 text-red-700',
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  error: 'border-danger/30 bg-danger/10 text-danger-soft',
+  success: 'border-ok/30 bg-ok/10 text-ok',
 }
 
 export function Alert({ variant, children }: AlertProps) {

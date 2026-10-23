@@ -13,7 +13,7 @@ const model = defineModel<string>({ required: true })
       {{ category.name }}
     </option>
   </Select>
-  <p v-if="isExpense && categories.length === 0" class="-mt-2 text-xs text-amber-600">
+  <p v-if="isExpense && categories.length === 0" class="-mt-2 text-xs text-warn">
     Los egresos requieren un sobre. Creá uno desde la sección Sobres de presupuesto.
   </p>
 </template>

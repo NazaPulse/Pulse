@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { extractErrorMessage } from '../../lib/api'
-import type { CreateTaskDTO, TaskPriority } from '../../lib/types'
+import type { CreateTaskDTO, TaskPriority } from '../../types/productivity'
 import { Alert } from '../Alert'
 import { Field } from '../Field'
 import { Modal } from '../Modal'
@@ -13,9 +13,9 @@ const TITLE_MAX_LENGTH = 200
 const DESCRIPTION_MAX_LENGTH = 1000
 
 const PRIORITY_OPTIONS: { value: TaskPriority; active: string }[] = [
-  { value: 'low', active: 'bg-emerald-600 text-white shadow-sm' },
-  { value: 'medium', active: 'bg-amber-500 text-white shadow-sm' },
-  { value: 'high', active: 'bg-red-600 text-white shadow-sm' },
+  { value: 'low', active: 'bg-ok-strong text-white shadow-sm' },
+  { value: 'medium', active: 'bg-warn text-ink shadow-sm' },
+  { value: 'high', active: 'bg-danger text-white shadow-sm' },
 ]
 
 /** Fecha/hora local actual en formato `YYYY-MM-DDTHH:mm` (`<input type="datetime-local">`). */
@@ -96,7 +96,7 @@ export function TaskFormModal({ onClose, onSubmit }: TaskFormModalProps) {
         />
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="task-description" className="text-sm font-medium text-slate-700">
+          <label htmlFor="task-description" className="text-sm font-medium text-fg-soft">
             Descripción (opcional)
           </label>
           <textarea
@@ -108,13 +108,13 @@ export function TaskFormModal({ onClose, onSubmit }: TaskFormModalProps) {
             onChange={(e) => setDescription(e.target.value)}
             disabled={submitting}
             maxLength={DESCRIPTION_MAX_LENGTH}
-            className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40 disabled:cursor-not-allowed disabled:bg-slate-50"
+            className="w-full resize-y rounded-lg border border-line-strong bg-canvas/60 px-3.5 py-2.5 text-fg outline-none transition placeholder:text-fg-dim focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:bg-white/5"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-slate-700">Prioridad</span>
-          <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1" role="radiogroup">
+          <span className="text-sm font-medium text-fg-soft">Prioridad</span>
+          <div className="grid grid-cols-3 gap-1 rounded-lg bg-white/5 p-1" role="radiogroup">
             {PRIORITY_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -125,7 +125,7 @@ export function TaskFormModal({ onClose, onSubmit }: TaskFormModalProps) {
                 onClick={() => setPriority(option.value)}
                 className={[
                   'rounded-md px-3 py-2 text-sm font-semibold transition',
-                  priority === option.value ? option.active : 'text-slate-600 hover:text-slate-900',
+                  priority === option.value ? option.active : 'text-fg-soft hover:text-fg',
                 ].join(' ')}
               >
                 {PRIORITY_LABELS[option.value]}

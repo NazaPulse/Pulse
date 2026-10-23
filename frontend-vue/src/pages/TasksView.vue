@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import Alert from '../components/Alert.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import PageHeader from '../components/PageHeader.vue'
 import Spinner from '../components/Spinner.vue'
 import TaskFormModal from '../components/Tasks/TaskFormModal.vue'
 import TaskList from '../components/Tasks/TaskList.vue'
@@ -36,7 +37,7 @@ const SORTS: { value: SortKey; label: string }[] = [
 const PRIORITY_RANK: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 }
 
 const SELECT_CLASS =
-  'rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40'
+  'rounded-lg border border-line-strong bg-canvas/60 px-3 py-1.5 text-sm text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30'
 
 function dueTime(task: Task): number {
   // Las tareas sin vencimiento van al final.
@@ -178,29 +179,29 @@ const emptyMessage = computed(() =>
 </script>
 
 <template>
-  <section class="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Tareas</h1>
-        <p class="mt-1 text-sm text-slate-500">
-          Marcá una tarea para completarla; el cambio se guarda al instante.
-        </p>
-      </div>
-      <button
-        type="button"
-        class="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-        @click="formOpen = true"
-      >
-        + Nueva tarea
-      </button>
-    </div>
+  <section class="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:py-10">
+    <PageHeader
+      eyebrow="02 · Productividad"
+      title="Tareas"
+      subtitle="Marcá una tarea para completarla; el cambio se guarda al instante."
+    >
+      <template #actions>
+        <button
+          type="button"
+          class="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-ink shadow-glow transition hover:bg-accent-hover"
+          @click="formOpen = true"
+        >
+          + Nueva tarea
+        </button>
+      </template>
+    </PageHeader>
 
     <div v-if="error" class="mt-6">
       <Alert variant="error">{{ error }}</Alert>
     </div>
 
     <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex gap-1 rounded-lg bg-slate-200/70 p-1" role="tablist">
+      <div class="flex gap-1 rounded-lg bg-white/10 p-1" role="tablist">
         <button
           v-for="option in FILTERS"
           :key="option.value"
@@ -210,18 +211,18 @@ const emptyMessage = computed(() =>
           :class="[
             'rounded-md px-3 py-1.5 text-sm font-medium transition',
             filter === option.value
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900',
+              ? 'bg-accent/15 text-accent ring-1 ring-inset ring-accent/30'
+              : 'text-fg-soft hover:text-fg',
           ]"
           @click="filter = option.value"
         >
           {{ option.label }}
-          <span class="ml-1.5 text-xs text-slate-400">{{ counts[option.value] }}</span>
+          <span class="ml-1.5 text-xs text-fg-dim">{{ counts[option.value] }}</span>
         </button>
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <label class="flex items-center gap-2 text-sm text-slate-600">
+        <label class="flex items-center gap-2 text-sm text-fg-soft">
           Prioridad
           <select v-model="priorityFilter" :class="SELECT_CLASS">
             <option v-for="option in PRIORITY_FILTERS" :key="option.value" :value="option.value">
@@ -230,7 +231,7 @@ const emptyMessage = computed(() =>
           </select>
         </label>
 
-        <label class="flex items-center gap-2 text-sm text-slate-600">
+        <label class="flex items-center gap-2 text-sm text-fg-soft">
           Ordenar por
           <select v-model="sort" :class="SELECT_CLASS">
             <option v-for="option in SORTS" :key="option.value" :value="option.value">
@@ -243,7 +244,7 @@ const emptyMessage = computed(() =>
 
     <div class="mt-4">
       <div v-if="loading" class="mt-16 flex justify-center">
-        <Spinner svg-class="h-8 w-8 text-indigo-600" />
+        <Spinner svg-class="h-8 w-8 text-accent" />
       </div>
       <TaskList
         v-else

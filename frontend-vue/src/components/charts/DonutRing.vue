@@ -13,9 +13,19 @@ function toggle(id: string) {
 </script>
 
 <template>
-  <div class="relative h-48 w-48 shrink-0">
+  <div class="relative h-52 w-52 shrink-0">
     <svg viewBox="0 0 160 160" class="h-full w-full -rotate-90" role="img" aria-label="Egresos por sobre">
-      <circle cx="80" cy="80" :r="RADIUS" fill="none" stroke="#F1F5F9" :stroke-width="STROKE" />
+      <circle
+        cx="80"
+        cy="80"
+        :r="RADIUS + 14"
+        fill="none"
+        stroke="#7B8AA0"
+        stroke-opacity=".35"
+        stroke-width="1"
+        stroke-dasharray="1 5"
+      />
+      <circle cx="80" cy="80" :r="RADIUS" fill="none" stroke="#1E293B" :stroke-width="STROKE" />
       <circle
         v-for="slice in slices"
         :key="slice.category.category_id"
@@ -29,7 +39,11 @@ function toggle(id: string) {
         :stroke-dashoffset="slice.offset"
         class="cursor-pointer transition-all duration-200"
         :style="{
-          opacity: activeId !== null && activeId !== slice.category.category_id ? 0.35 : 1,
+          opacity: activeId !== null && activeId !== slice.category.category_id ? 0.3 : 1,
+          filter:
+            activeId === slice.category.category_id
+              ? `drop-shadow(0 0 5px ${slice.color})`
+              : undefined,
         }"
         @mouseenter="activeId = slice.category.category_id"
         @mouseleave="activeId = null"
@@ -41,13 +55,13 @@ function toggle(id: string) {
       </circle>
     </svg>
     <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-      <span class="max-w-[7rem] truncate text-xs text-slate-500">
+      <span class="eyebrow max-w-[7.5rem] truncate !tracking-[0.1em] text-fg-muted">
         {{ active ? active.category_name : 'Total egresos' }}
       </span>
-      <span class="text-base font-semibold tabular-nums text-slate-900">
+      <span class="mt-1 font-display text-lg font-bold tabular-nums text-fg">
         {{ currencyFormatter.format(active ? active.total_amount : totalExpenses) }}
       </span>
-      <span v-if="active" class="text-xs text-slate-500">{{ active.percentage }}%</span>
+      <span v-if="active" class="text-xs text-accent">{{ active.percentage }}%</span>
     </div>
   </div>
 </template>

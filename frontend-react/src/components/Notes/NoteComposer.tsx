@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { createNote, extractErrorMessage, uploadAudioNote } from '../../lib/api'
-import { formatClock, formatDateTime } from '../../lib/format'
-import type { CreateNoteDTO, Note } from '../../lib/types'
+import { formatClock, formatDateTime } from '@shared/format'
+import type { CreateNoteDTO, Note } from '../../types/productivity'
 import { Alert } from '../Alert'
 import { Spinner } from '../Spinner'
 import { MAX_RECORDING_MS, useAudioRecorder } from './useAudioRecorder'
@@ -87,7 +87,7 @@ export function NoteComposer({ onCreated }: NoteComposerProps) {
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+      className="flex flex-col gap-3 pulse-card p-4 sm:p-5"
     >
       {error ? <Alert variant="error">{error}</Alert> : null}
       {saved && !error ? <Alert variant="success">{saved}</Alert> : null}
@@ -100,7 +100,7 @@ export function NoteComposer({ onCreated }: NoteComposerProps) {
         onChange={(e) => setTitle(e.target.value)}
         maxLength={TITLE_MAX_LENGTH}
         disabled={busy}
-        className="w-full border-0 border-b border-slate-200 bg-transparent px-0 py-1.5 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-500 disabled:text-slate-400"
+        className="w-full border-0 border-b border-line bg-transparent px-0 py-1.5 text-base font-semibold text-fg outline-none placeholder:text-fg-dim focus:border-accent disabled:text-fg-dim"
       />
       <textarea
         aria-label="Contenido"
@@ -109,42 +109,42 @@ export function NoteComposer({ onCreated }: NoteComposerProps) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         disabled={busy}
-        className="w-full resize-y border-0 bg-transparent px-0 py-1 text-sm text-slate-700 outline-none placeholder:text-slate-400 disabled:text-slate-400"
+        className="w-full resize-y border-0 bg-transparent px-0 py-1 text-sm text-fg-soft outline-none placeholder:text-fg-dim disabled:text-fg-dim"
       />
 
       {recording ? (
         <div
-          className="flex items-center gap-3 rounded-xl bg-red-50 px-3.5 py-2.5"
+          className="flex items-center gap-3 rounded-xl bg-danger/10 px-3.5 py-2.5"
           role="status"
           aria-live="polite"
         >
           <span className="relative flex h-3 w-3">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger-soft opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-danger" />
           </span>
-          <span className="font-mono text-sm font-semibold tabular-nums text-red-700">
+          <span className="font-mono text-sm font-semibold tabular-nums text-danger-soft">
             {formatClock(recorder.elapsedMs)}
           </span>
-          <span className="hidden text-xs text-red-600/80 sm:inline">
+          <span className="hidden text-xs text-danger-soft/80 sm:inline">
             / {formatClock(MAX_RECORDING_MS)} máx.
           </span>
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-red-100" aria-hidden="true">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-danger/20" aria-hidden="true">
             <div
-              className="h-full rounded-full bg-red-500 transition-[width] duration-75"
+              className="h-full rounded-full bg-danger-soft transition-[width] duration-75"
               style={{ width: `${Math.round(recorder.level * 100)}%` }}
             />
           </div>
           <button
             type="button"
             onClick={recorder.cancel}
-            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+            className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-danger-soft transition hover:bg-danger/20"
           >
             Descartar
           </button>
           <button
             type="button"
             onClick={recorder.stop}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-danger px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-danger-strong"
           >
             <span className="h-2.5 w-2.5 rounded-sm bg-white" aria-hidden="true" />
             Detener
@@ -152,10 +152,10 @@ export function NoteComposer({ onCreated }: NoteComposerProps) {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
         <div className="flex flex-wrap items-center gap-2">
           {recorder.permission === 'unsupported' ? (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-fg-muted">
               Tu navegador no permite grabar audio (se requiere HTTPS o localhost).
             </p>
           ) : recorder.permission !== 'granted' && !recording ? (
@@ -163,7 +163,7 @@ export function NoteComposer({ onCreated }: NoteComposerProps) {
               type="button"
               onClick={() => void recorder.requestPermission()}
               disabled={busy || recorder.status === 'requesting'}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-white/[0.03] px-3 py-2 text-sm font-medium text-fg-soft transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <MicIcon />
               {recorder.permission === 'denied' ? 'Reintentar permiso de micrófono' : 'Activar micrófono'}
@@ -175,7 +175,7 @@ export function NoteComposer({ onCreated }: NoteComposerProps) {
               type="button"
               onClick={() => void recorder.start()}
               disabled={busy || recorder.status === 'requesting'}
-              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+              className="inline-flex items-center gap-2 rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-danger-strong disabled:cursor-not-allowed disabled:bg-danger/40"
             >
               <span className="h-2.5 w-2.5 rounded-full bg-white" aria-hidden="true" />
               Grabar nota de voz
@@ -186,15 +186,15 @@ export function NoteComposer({ onCreated }: NoteComposerProps) {
             <button
               type="button"
               onClick={() => void saveNote(pendingAudio)}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-accent transition hover:bg-accent/10"
             >
               Reintentar subida
             </button>
           ) : null}
 
           {busy ? (
-            <span className="inline-flex items-center gap-2 text-sm text-slate-500" role="status">
-              <Spinner className="h-4 w-4 text-indigo-600" />
+            <span className="inline-flex items-center gap-2 text-sm text-fg-muted" role="status">
+              <Spinner className="h-4 w-4 text-accent" />
               {phase === 'uploading' ? 'Subiendo audio…' : 'Guardando nota…'}
             </span>
           ) : null}
@@ -203,7 +203,7 @@ export function NoteComposer({ onCreated }: NoteComposerProps) {
         <button
           type="submit"
           disabled={!canSaveText}
-          className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+          className="rounded-lg bg-accent shadow-glow px-3.5 py-2 text-sm font-semibold text-ink transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-accent/30 disabled:text-ink/50 disabled:shadow-none"
         >
           Guardar nota
         </button>

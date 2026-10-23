@@ -5,6 +5,7 @@ import Alert from '../components/Alert.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import NoteCard from '../components/Notes/NoteCard.vue'
 import NoteComposer from '../components/Notes/NoteComposer.vue'
+import PageHeader from '../components/PageHeader.vue'
 import Spinner from '../components/Spinner.vue'
 import { deleteNote, extractErrorMessage, getNotes } from '../lib/api'
 import type { Note } from '../types/productivity'
@@ -49,12 +50,12 @@ async function handleConfirmDelete() {
 </script>
 
 <template>
-  <section class="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-    <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Notas</h1>
-    <p class="mt-1 text-sm text-slate-500">
-      Escribí ideas o grabá notas de voz: el audio se sube y la nota se guarda sola al detener la
-      grabación.
-    </p>
+  <section class="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:py-10">
+    <PageHeader
+      eyebrow="03 · Ideas"
+      title="Notas"
+      subtitle="Escribí ideas o grabá notas de voz: el audio se sube y la nota se guarda sola al detener la grabación."
+    />
 
     <div class="mt-6">
       <NoteComposer @created="handleCreated" />
@@ -65,11 +66,11 @@ async function handleConfirmDelete() {
     </div>
 
     <div v-if="loading" class="mt-16 flex justify-center">
-      <Spinner svg-class="h-8 w-8 text-indigo-600" />
+      <Spinner svg-class="h-8 w-8 text-accent" />
     </div>
     <div
       v-else-if="notes.length === 0"
-      class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-500"
+      class="mt-6 pulse-empty px-6 py-10 text-center text-sm text-fg-muted"
     >
       Todavía no tenés notas.
     </div>

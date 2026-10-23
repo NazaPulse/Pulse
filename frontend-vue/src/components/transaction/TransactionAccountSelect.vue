@@ -14,7 +14,7 @@ const model = defineModel<string>({ required: true })
       {{ account.name }} — {{ currencyFormatter.format(account.balance) }}
     </option>
   </Select>
-  <p v-if="exceedsBalance" class="-mt-2 text-xs text-amber-600">
+  <p v-if="exceedsBalance" class="-mt-2 text-xs text-warn">
     El monto supera el saldo disponible de la cuenta.
   </p>
 </template>

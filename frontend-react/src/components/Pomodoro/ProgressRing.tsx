@@ -3,14 +3,14 @@ import type { ReactNode } from 'react'
 type ProgressRingProps = {
   /** Fracción completada, de 0 a 1. */
   progress: number
-  /** Clase de color del trazo (p. ej. `text-red-500`). */
+  /** Clase de color del trazo (p. ej. `text-danger-soft`). */
   colorClass: string
   children: ReactNode
 }
 
 const SIZE = 280
-const STROKE = 14
-const RADIUS = (SIZE - STROKE) / 2
+const STROKE = 12
+const RADIUS = (SIZE - STROKE) / 2 - 14
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export function ProgressRing({ progress, colorClass, children }: ProgressRingProps) {
@@ -29,11 +29,22 @@ export function ProgressRing({ progress, colorClass, children }: ProgressRingPro
         <circle
           cx={SIZE / 2}
           cy={SIZE / 2}
+          r={RADIUS + STROKE / 2 + 7}
+          fill="none"
+          stroke="#7B8AA0"
+          strokeOpacity=".4"
+          strokeWidth="1.5"
+          strokeDasharray="1 7"
+          strokeLinecap="round"
+        />
+        <circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
           r={RADIUS}
           fill="none"
           stroke="currentColor"
           strokeWidth={STROKE}
-          className="text-slate-200"
+          className="text-line-strong"
         />
         <circle
           cx={SIZE / 2}
@@ -45,7 +56,7 @@ export function ProgressRing({ progress, colorClass, children }: ProgressRingPro
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
           strokeDashoffset={CIRCUMFERENCE * (1 - clamped)}
-          className={`${colorClass} transition-[stroke-dashoffset] duration-300 ease-linear`}
+          className={`${colorClass} drop-shadow-[0_0_8px_currentColor] transition-[stroke-dashoffset] duration-300 ease-linear`}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>

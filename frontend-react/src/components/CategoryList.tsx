@@ -1,5 +1,7 @@
 import type { Category } from '@shared/types'
 
+import { tintedChipStyle } from '../lib/chartPalette'
+
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
   style: 'currency',
   currency: 'ARS',
@@ -15,7 +17,7 @@ type CategoryListProps = {
 export function CategoryList({ categories, onEdit, onDelete }: CategoryListProps) {
   if (categories.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
+      <p className="pulse-empty px-4 py-6 text-center text-sm text-fg-muted">
         Todavía no tenés sobres de presupuesto. Creá el primero con el botón de arriba.
       </p>
     )
@@ -23,22 +25,22 @@ export function CategoryList({ categories, onEdit, onDelete }: CategoryListProps
 
   return (
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {categories.map((category) => (
+      {categories.map((category, index) => (
         <li
           key={category.id}
-          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+          className="flex items-center justify-between gap-3 pulse-card p-4"
         >
           <div className="flex min-w-0 items-center gap-3">
             <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase text-white"
-              style={{ backgroundColor: category.color }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase"
+              style={tintedChipStyle(category.color, index)}
             >
               {category.icon.slice(0, 2)}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">{category.name}</p>
-              <p className="text-xs text-slate-500">{category.icon}</p>
-              <p className="mt-0.5 text-base font-semibold text-slate-900">
+              <p className="truncate text-sm font-semibold text-fg">{category.name}</p>
+              <p className="text-xs text-fg-muted">{category.icon}</p>
+              <p className="mt-0.5 text-base font-semibold text-fg">
                 {currencyFormatter.format(category.target_amount)}
               </p>
             </div>
@@ -49,7 +51,7 @@ export function CategoryList({ categories, onEdit, onDelete }: CategoryListProps
               type="button"
               onClick={() => onEdit(category)}
               aria-label={`Editar ${category.name}`}
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600"
+              className="rounded-lg p-2 text-fg-dim transition hover:bg-white/10 hover:text-accent"
             >
               <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                 <path
@@ -65,7 +67,7 @@ export function CategoryList({ categories, onEdit, onDelete }: CategoryListProps
               type="button"
               onClick={() => onDelete(category)}
               aria-label={`Eliminar ${category.name}`}
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+              className="rounded-lg p-2 text-fg-dim transition hover:bg-danger/10 hover:text-danger-soft"
             >
               <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
                 <path

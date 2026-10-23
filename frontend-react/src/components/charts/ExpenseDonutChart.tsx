@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import type { FinanceSummary } from '@shared/types'
 import { buildDonutSlices, findActive, isEmptyBreakdown } from '@shared/utils/donutChart'
+import { chartColor } from '../../lib/chartPalette'
 import { DonutLegend } from './DonutLegend'
 import { DonutRing } from './DonutRing'
 
@@ -11,15 +12,19 @@ export function ExpenseDonutChart({ summary }: { summary: FinanceSummary }) {
 
   if (isEmptyBreakdown(categories)) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
+      <div className="pulse-empty px-4 py-10 text-center text-sm text-fg-muted">
         Todavía no hay egresos registrados para mostrar el desglose por sobre.
       </div>
     )
   }
 
-  const slices = buildDonutSlices(categories)
+  // Paleta pastel de Pulse para los sobres sin color propio.
+  const slices = buildDonutSlices(categories).map((slice, index) => ({
+    ...slice,
+    color: chartColor(slice.color, index),
+  }))
   return (
-    <div className="flex flex-col items-center gap-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start">
+    <div className="pulse-card flex flex-col items-center gap-6 p-5 sm:flex-row sm:items-center">
       <DonutRing
         slices={slices}
         activeId={activeId}

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Alert } from '../components/Alert'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { PageHeader } from '../components/PageHeader'
 import { Spinner } from '../components/Spinner'
 import { TaskFormModal } from '../components/Tasks/TaskFormModal'
 import { TaskList } from '../components/Tasks/TaskList'
 import { createTask, deleteTask, extractErrorMessage, getTasks, updateTask } from '../lib/api'
-import type { CreateTaskDTO, Task, TaskPriority, TaskStatus } from '../lib/types'
+import type { CreateTaskDTO, Task, TaskPriority, TaskStatus } from '../types/productivity'
 
 type StatusFilter = 'all' | TaskStatus
 type SortKey = 'created' | 'priority' | 'due_date'
@@ -143,22 +144,21 @@ export function TasksPage() {
         : 'No tenés tareas. Creá la primera con “+ Nueva tarea”.'
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Tareas</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Marcá una tarea para completarla; el cambio se guarda al instante.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-        >
-          + Nueva tarea
-        </button>
-      </div>
+    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:py-10">
+      <PageHeader
+        eyebrow="02 · Productividad"
+        title="Tareas"
+        subtitle="Marcá una tarea para completarla; el cambio se guarda al instante."
+        actions={
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-ink shadow-glow transition hover:bg-accent-hover"
+          >
+            + Nueva tarea
+          </button>
+        }
+      />
 
       {error ? (
         <div className="mt-6">
@@ -167,7 +167,7 @@ export function TasksPage() {
       ) : null}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-lg bg-slate-200/70 p-1" role="tablist">
+        <div className="flex gap-1 rounded-lg bg-white/10 p-1" role="tablist">
           {FILTERS.map((option) => (
             <button
               key={option.value}
@@ -178,22 +178,22 @@ export function TasksPage() {
               className={[
                 'rounded-md px-3 py-1.5 text-sm font-medium transition',
                 filter === option.value
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900',
+                  ? 'bg-accent/15 text-accent ring-1 ring-inset ring-accent/30'
+                  : 'text-fg-soft hover:text-fg',
               ].join(' ')}
             >
               {option.label}
-              <span className="ml-1.5 text-xs text-slate-400">{counts[option.value]}</span>
+              <span className="ml-1.5 text-xs text-fg-dim">{counts[option.value]}</span>
             </button>
           ))}
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2 text-sm text-fg-soft">
           Ordenar por
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
+            className="rounded-lg border border-line-strong bg-canvas/60 px-3 py-1.5 text-sm text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
           >
             {SORTS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -207,7 +207,7 @@ export function TasksPage() {
       <div className="mt-4">
         {loading ? (
           <div className="mt-16 flex justify-center">
-            <Spinner className="h-8 w-8 text-indigo-600" />
+            <Spinner className="h-8 w-8 text-accent" />
           </div>
         ) : (
           <TaskList

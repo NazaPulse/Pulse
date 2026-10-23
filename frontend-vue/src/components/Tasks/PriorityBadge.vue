@@ -5,15 +5,15 @@ import { PRIORITY_LABELS } from './priority'
 defineProps<{ priority: TaskPriority }>()
 
 const STYLES: Record<TaskPriority, string> = {
-  low: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-  medium: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-  high: 'bg-red-50 text-red-700 ring-red-600/20',
+  low: 'bg-ok/10 text-ok ring-ok/30',
+  medium: 'bg-warn/10 text-warn ring-warn/30',
+  high: 'bg-danger/10 text-danger-soft ring-danger-soft/30',
 }
 
 const DOTS: Record<TaskPriority, string> = {
-  low: 'bg-emerald-500',
-  medium: 'bg-amber-500',
-  high: 'bg-red-500',
+  low: 'bg-ok',
+  medium: 'bg-warn',
+  high: 'bg-danger-soft',
 }
 </script>
 

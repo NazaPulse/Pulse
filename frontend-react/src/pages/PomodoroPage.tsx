@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Alert } from '../components/Alert'
+import { PageHeader } from '../components/PageHeader'
 import { ProgressRing } from '../components/Pomodoro/ProgressRing'
 import {
   MODE_DURATIONS_MS,
@@ -8,29 +9,29 @@ import {
   WORK_SESSIONS_PER_LONG_BREAK,
 } from '../components/Pomodoro/usePomodoro'
 import type { PomodoroMode } from '../components/Pomodoro/usePomodoro'
-import { formatClock } from '../lib/format'
+import { formatClock } from '@shared/format'
 
 const MODES: { value: PomodoroMode; label: string; ring: string; button: string; tab: string }[] = [
   {
     value: 'work',
     label: 'Trabajo',
-    ring: 'text-red-500',
-    button: 'bg-red-600 hover:bg-red-700',
-    tab: 'bg-red-600 text-white shadow-sm',
+    ring: 'text-danger-soft',
+    button: 'bg-danger hover:bg-danger-strong',
+    tab: 'bg-danger text-white shadow-sm',
   },
   {
     value: 'short_break',
     label: 'Descanso corto',
-    ring: 'text-emerald-500',
-    button: 'bg-emerald-600 hover:bg-emerald-700',
-    tab: 'bg-emerald-600 text-white shadow-sm',
+    ring: 'text-ok',
+    button: 'bg-ok-strong hover:bg-ok-deep',
+    tab: 'bg-ok-strong text-white shadow-sm',
   },
   {
     value: 'long_break',
     label: 'Descanso largo',
-    ring: 'text-sky-500',
-    button: 'bg-sky-600 hover:bg-sky-700',
-    tab: 'bg-sky-600 text-white shadow-sm',
+    ring: 'text-info',
+    button: 'bg-info-strong hover:bg-info-deep',
+    tab: 'bg-info-strong text-white shadow-sm',
   },
 ]
 
@@ -106,15 +107,15 @@ export function PomodoroPage() {
   const isPristine = !timer.running && timer.remainingMs === timer.durationMs
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Pomodoro</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Bloques de 25 minutos de concentración con descansos cortos y, cada{' '}
-        {WORK_SESSIONS_PER_LONG_BREAK} bloques, uno largo.
-      </p>
+    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:py-10">
+      <PageHeader
+        eyebrow="04 · Foco"
+        title="Pomodoro"
+        subtitle={`Bloques de 25 minutos de concentración con descansos cortos y, cada ${WORK_SESSIONS_PER_LONG_BREAK} bloques, uno largo.`}
+      />
 
-      <div className="mx-auto mt-8 flex max-w-md flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-        <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1" role="tablist">
+      <div className="mx-auto mt-8 flex max-w-md flex-col gap-6 pulse-card p-5 sm:p-8">
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-white/5 p-1" role="tablist">
           {MODES.map((mode) => (
             <button
               key={mode.value}
@@ -127,7 +128,7 @@ export function PomodoroPage() {
               }}
               className={[
                 'rounded-md px-2 py-2 text-xs font-semibold transition sm:text-sm',
-                timer.mode === mode.value ? mode.tab : 'text-slate-600 hover:text-slate-900',
+                timer.mode === mode.value ? mode.tab : 'text-fg-soft hover:text-fg',
               ].join(' ')}
             >
               {mode.label}
@@ -142,12 +143,12 @@ export function PomodoroPage() {
 
         <ProgressRing progress={timer.progress} colorClass={current.ring}>
           <span
-            className="font-mono text-6xl font-semibold tabular-nums tracking-tight text-slate-900"
+            className="font-mono text-6xl font-semibold tabular-nums tracking-tight text-fg"
             aria-live="off"
           >
             {clock}
           </span>
-          <span className="mt-1 text-sm text-slate-500">
+          <span className="mt-1 text-sm text-fg-muted">
             {timer.running ? current.label : isPristine ? 'Listo para empezar' : 'En pausa'}
           </span>
         </ProgressRing>
@@ -157,7 +158,7 @@ export function PomodoroPage() {
             <button
               type="button"
               onClick={timer.pause}
-              className="min-w-32 rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+              className="min-w-32 rounded-lg bg-white/10 px-5 py-2.5 text-sm font-semibold text-fg transition hover:bg-white/15"
             >
               Pausar
             </button>
@@ -177,22 +178,22 @@ export function PomodoroPage() {
               timer.reset()
             }}
             disabled={isPristine}
-            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg border border-line-strong bg-white/[0.03] px-5 py-2.5 text-sm font-medium text-fg-soft transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Reiniciar
           </button>
         </div>
 
-        <div className="flex flex-col items-center gap-2 border-t border-slate-100 pt-4">
+        <div className="flex flex-col items-center gap-2 border-t border-line pt-4">
           <div className="flex gap-1.5" aria-hidden="true">
             {Array.from({ length: WORK_SESSIONS_PER_LONG_BREAK }, (_, i) => (
               <span
                 key={i}
-                className={`h-2.5 w-2.5 rounded-full ${i < sessionInCycle ? 'bg-red-500' : 'bg-slate-200'}`}
+                className={`h-2.5 w-2.5 rounded-full ${i < sessionInCycle ? 'bg-danger-soft' : 'bg-white/10'}`}
               />
             ))}
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-fg-muted">
             {timer.completedWorkSessions === 1
               ? '1 bloque de trabajo completado'
               : `${timer.completedWorkSessions} bloques de trabajo completados`}

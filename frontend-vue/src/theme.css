@@ -1,0 +1,298 @@
+/*
+ * Pulse — Sistema de diseño "Cyber Dark · Neón Cyan".
+ *
+ * La paleta y las tipografías viven en `tailwind.config.js` (se cargan con
+ * `@config`); acá quedan las animaciones, utilidades de brillo neón y componentes.
+ * Es IDÉNTICO en frontend-react y frontend-vue (paridad visual 100%).
+ */
+
+@config '../tailwind.config.js';
+
+@theme {
+  --animate-ecg: ecg 2.6s linear infinite;
+  --animate-blink: blink 2.4s ease-in-out infinite;
+  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes ecg {
+    from {
+      stroke-dashoffset: 200;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  @keyframes blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* Resplandor neón reutilizable (botones primarios, indicadores). */
+@utility shadow-glow {
+  box-shadow:
+    0 0 0 1px rgb(0 240 255 / 0.55),
+    0 0 16px -2px rgb(0 240 255 / 0.55),
+    0 0 36px -10px rgb(0 240 255 / 0.6);
+}
+@utility shadow-glow-sm {
+  box-shadow: 0 0 10px 0 rgb(0 240 255 / 0.65);
+}
+@utility text-glow {
+  text-shadow: 0 0 18px rgb(0 240 255 / 0.55);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: theme(colors.canvas);
+    background-image:
+      radial-gradient(900px 520px at 88% -8%, rgb(0 240 255 / 0.1), transparent 60%),
+      radial-gradient(760px 480px at -8% 12%, rgb(99 102 241 / 0.09), transparent 58%),
+      radial-gradient(700px 420px at 50% 115%, rgb(0 240 255 / 0.05), transparent 60%);
+    background-attachment: fixed;
+    color: theme(colors.fg);
+    font-family: theme(fontFamily.sans);
+  }
+
+  /* Rejilla técnica tenue detrás de todo el contenido. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgb(148 163 184 / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(148 163 184 / 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 10%, transparent 75%);
+  }
+
+  #root,
+  #app {
+    position: relative;
+    z-index: 1;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: theme(fontFamily.display);
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: rgb(0 240 255 / 0.3);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid theme(colors.accent);
+    outline-offset: 2px;
+  }
+
+  /* Barras de scroll discretas. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: theme(colors.line.strong) transparent;
+  }
+
+  input[type='color'] {
+    background: transparent;
+  }
+  select option {
+    background: theme(colors.surface);
+    color: theme(colors.fg);
+  }
+}
+
+@layer components {
+  /* Tarjeta "glass": vidrio oscuro, borde sutil y línea de luz superior. */
+  .pulse-card {
+    position: relative;
+    border-radius: 1rem;
+    border: 1px solid theme(colors.line);
+    background: linear-gradient(180deg, rgb(30 41 59 / 0.55), rgb(17 24 39 / 0.8));
+    backdrop-filter: blur(14px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.05),
+      0 14px 34px -18px rgb(0 0 0 / 0.75);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+  .pulse-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 1.25rem;
+    width: 36%;
+    height: 1px;
+    background: linear-gradient(90deg, theme(colors.accent), transparent);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  .pulse-card:hover {
+    border-color: rgb(0 240 255 / 0.32);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.06),
+      0 14px 34px -18px rgb(0 0 0 / 0.75),
+      0 0 26px -10px rgb(0 240 255 / 0.4);
+  }
+
+  .pulse-empty {
+    border-radius: 1rem;
+    border: 1px dashed theme(colors.line.strong);
+    background: rgb(17 24 39 / 0.45);
+  }
+
+  /* Marcos HUD: cuatro esquinas luminosas, como el visor de un juego. */
+  .hud-corners::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 4px rgb(0 240 255 / 0.8));
+    background:
+      linear-gradient(theme(colors.accent), theme(colors.accent)) top left / 16px 1px no-repeat,
+      linear-gradient(theme(colors.accent), theme(colors.accent)) top left / 1px 16px no-repeat,
+      linear-gradient(theme(colors.accent), theme(colors.accent)) top right / 16px 1px no-repeat,
+      linear-gradient(theme(colors.accent), theme(colors.accent)) top right / 1px 16px no-repeat,
+      linear-gradient(theme(colors.accent), theme(colors.accent)) bottom left / 16px 1px no-repeat,
+      linear-gradient(theme(colors.accent), theme(colors.accent)) bottom left / 1px 16px no-repeat,
+      linear-gradient(theme(colors.accent), theme(colors.accent)) bottom right / 16px 1px no-repeat,
+      linear-gradient(theme(colors.accent), theme(colors.accent)) bottom right / 1px 16px no-repeat;
+  }
+
+  /* Etiqueta técnica (mono, mayúsculas) sobre los títulos. */
+  .eyebrow {
+    font-family: theme(fontFamily.mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: theme(colors.accent);
+  }
+
+  /* Título de sección con marcador luminoso. */
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-family: theme(fontFamily.display);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: theme(colors.fg);
+  }
+  .section-title::before {
+    content: '';
+    width: 4px;
+    height: 1.1em;
+    border-radius: 2px;
+    background: theme(colors.accent);
+    box-shadow: 0 0 10px theme(colors.accent);
+  }
+
+  /* Navegación lateral / inferior. `aria-current` lo ponen react-router y vue-router. */
+  .nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: theme(colors.fg.muted);
+    transition:
+      color 0.18s ease,
+      background-color 0.18s ease;
+  }
+  .nav-link:hover {
+    color: theme(colors.fg);
+    background: rgb(255 255 255 / 0.04);
+  }
+  .nav-link[aria-current='page'] {
+    color: theme(colors.accent);
+    background: linear-gradient(90deg, rgb(0 240 255 / 0.14), rgb(0 240 255 / 0.02));
+  }
+  .nav-link[aria-current='page']::before {
+    content: '';
+    position: absolute;
+    left: -0.75rem;
+    top: 22%;
+    bottom: 22%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: theme(colors.accent);
+    box-shadow: 0 0 12px 1px theme(colors.accent);
+  }
+  .nav-link[aria-current='page'] svg {
+    filter: drop-shadow(0 0 5px rgb(0 240 255 / 0.9));
+  }
+
+  .tab-link {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.55rem 0.25rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: theme(colors.fg.dim);
+    transition: color 0.18s ease;
+  }
+  .tab-link[aria-current='page'] {
+    color: theme(colors.accent);
+  }
+  .tab-link[aria-current='page']::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 30%;
+    right: 30%;
+    height: 2px;
+    border-radius: 0 0 2px 2px;
+    background: theme(colors.accent);
+    box-shadow: 0 0 10px 1px theme(colors.accent);
+  }
+  .tab-link[aria-current='page'] svg {
+    filter: drop-shadow(0 0 5px rgb(0 240 255 / 0.9));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

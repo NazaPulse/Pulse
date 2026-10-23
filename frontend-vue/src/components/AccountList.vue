@@ -30,7 +30,7 @@ function format(value: number): string {
 <template>
   <p
     v-if="accounts.length === 0"
-    class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500"
+    class="pulse-empty px-4 py-6 text-center text-sm text-fg-muted"
   >
     Todavía no tenés cuentas cargadas. Creá la primera con el botón de arriba.
   </p>
@@ -39,18 +39,18 @@ function format(value: number): string {
     <li
       v-for="account in accounts"
       :key="account.id"
-      class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+      class="flex items-center justify-between gap-3 pulse-card p-4"
     >
       <div class="flex min-w-0 items-center gap-3">
         <span
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-lg"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5 text-lg"
         >
           {{ TYPE_ICON[account.type] }}
         </span>
         <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-slate-900">{{ account.name }}</p>
-          <p class="text-xs text-slate-500">{{ TYPE_LABEL[account.type] }}</p>
-          <p class="mt-0.5 text-base font-semibold text-slate-900">
+          <p class="truncate text-sm font-semibold text-fg">{{ account.name }}</p>
+          <p class="text-xs text-fg-muted">{{ TYPE_LABEL[account.type] }}</p>
+          <p class="mt-0.5 text-base font-semibold text-fg">
             {{ format(account.balance) }}
           </p>
         </div>
@@ -60,7 +60,7 @@ function format(value: number): string {
         <button
           type="button"
           :aria-label="`Editar ${account.name}`"
-          class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600"
+          class="rounded-lg p-2 text-fg-dim transition hover:bg-white/10 hover:text-accent"
           @click="emit('edit', account)"
         >
           <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
@@ -76,7 +76,7 @@ function format(value: number): string {
         <button
           type="button"
           :aria-label="`Eliminar ${account.name}`"
-          class="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+          class="rounded-lg p-2 text-fg-dim transition hover:bg-danger/10 hover:text-danger-soft"
           @click="emit('remove', account)"
         >
           <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">

@@ -29,7 +29,7 @@ export function LoginPage() {
           ¿No tenés cuenta?{' '}
           <Link
             to="/register"
-            className="font-semibold text-indigo-600 hover:text-indigo-700"
+            className="font-semibold text-accent hover:text-accent-hover"
           >
             Registrate
           </Link>

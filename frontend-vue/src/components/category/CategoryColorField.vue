@@ -17,14 +17,14 @@ function onInput(event: Event) {
 
 <template>
   <div class="flex flex-col gap-1.5">
-    <label class="text-sm font-medium text-slate-700" for="category-color-vue">Color</label>
+    <label class="text-sm font-medium text-fg-soft" for="category-color-vue">Color</label>
     <div class="flex items-center gap-3">
       <input
         id="category-color-vue"
         type="color"
         :value="colorPickerValue"
         :disabled="disabled"
-        class="h-10 w-14 shrink-0 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+        class="h-10 w-14 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1"
         @input="onInput"
       />
       <input
@@ -34,14 +34,14 @@ function onInput(event: Event) {
         placeholder="#6B7280"
         maxlength="7"
         :class="[
-          'w-full rounded-lg border bg-white px-3.5 py-2.5 text-slate-900 shadow-sm outline-none transition',
-          'focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500',
-          'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
-          isColorValid ? 'border-slate-300' : 'border-red-400',
+          'w-full rounded-lg border bg-canvas/60 px-3.5 py-2.5 text-fg outline-none transition',
+          'focus:ring-2 focus:ring-accent/30 focus:border-accent',
+          'disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-fg-dim',
+          isColorValid ? 'border-line-strong' : 'border-danger-soft',
         ]"
         @input="onInput"
       />
     </div>
-    <p v-if="!isColorValid" class="text-xs text-red-600">Formato esperado: #RRGGBB</p>
+    <p v-if="!isColorValid" class="text-xs text-danger-soft">Formato esperado: #RRGGBB</p>
   </div>
 </template>
