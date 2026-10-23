@@ -81,58 +81,61 @@ def fake_users(monkeypatch) -> FakeUsersService:
     return svc
 
 
-class FakeAccountsService:
-    """Réplica en memoria de `AccountsService` (mismo contrato/aislamiento)."""
+class FakeStore:
+    """Base de los servicios falsos: almacén en memoria con el mismo aislamiento por usuario
+    que los servicios reales (un `id` ajeno, inexistente o inválido responde 404)."""
+
+    newest_first = False
 
     def __init__(self) -> None:
         self._rows: dict[uuid.UUID, SimpleNamespace] = {}
 
-    def list_for_user(self, db, user_id):
-        rows = [r for r in self._rows.values() if r.user_id == user_id and r.is_active]
-        rows.sort(key=lambda r: r.created_at)
-        return [self._to_schema(r) for r in rows]
+    def _schema(self, row: SimpleNamespace):
+        raise NotImplementedError
 
-    def create(self, db, user_id, dto):
+    def _visible(self, row: SimpleNamespace, user_id) -> bool:
+        return row.user_id == user_id
+
+    def _insert(self, user_id, **fields) -> SimpleNamespace:
         now = dt.datetime.now(tz=dt.timezone.utc)
-        row = SimpleNamespace(
-            id=uuid.uuid4(),
-            user_id=user_id,
-            name=dto.name,
-            type=dto.type.value,
-            balance=dto.initial_balance,
-            is_active=True,
-            created_at=now,
-            updated_at=now,
-        )
+        row = SimpleNamespace(id=uuid.uuid4(), user_id=user_id, created_at=now, updated_at=now, **fields)
         self._rows[row.id] = row
-        return self._to_schema(row)
+        return row
 
-    def get_for_user(self, db, user_id, account_id):
-        return self._to_schema(self._find_owned_or_fail(user_id, account_id))
+    def _list(self, user_id) -> list[SimpleNamespace]:
+        rows = [r for r in self._rows.values() if self._visible(r, user_id)]
+        return sorted(rows, key=lambda r: r.created_at, reverse=self.newest_first)
 
-    def update(self, db, user_id, account_id, dto):
-        row = self._find_owned_or_fail(user_id, account_id)
-        row.name = dto.name
-        row.type = dto.type.value
-        row.updated_at = dt.datetime.now(tz=dt.timezone.utc)
-        return self._to_schema(row)
+    def _touch(self, row: SimpleNamespace, **fields) -> SimpleNamespace:
+        row.__dict__.update(fields, updated_at=dt.datetime.now(tz=dt.timezone.utc))
+        return row
 
-    def remove(self, db, user_id, account_id) -> None:
-        row = self._find_owned_or_fail(user_id, account_id)
-        row.is_active = False
-
-    def _find_owned_or_fail(self, user_id, account_id) -> SimpleNamespace:
+    def _find_owned_or_fail(self, user_id, row_id) -> SimpleNamespace:
         try:
-            account_uuid = uuid.UUID(str(account_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=_NOT_FOUND_MESSAGE) from exc
-        row = self._rows.get(account_uuid)
-        if row is None or row.user_id != user_id or not row.is_active:
+            row = self._rows.get(uuid.UUID(str(row_id)))
+        except ValueError:
+            row = None
+        if row is None or not self._visible(row, user_id):
             raise HTTPException(status_code=404, detail=_NOT_FOUND_MESSAGE)
         return row
 
-    @staticmethod
-    def _to_schema(row: SimpleNamespace) -> AccountSchema:
+    def list_for_user(self, db, user_id):
+        return [self._schema(r) for r in self._list(user_id)]
+
+    def get_for_user(self, db, user_id, row_id):
+        return self._schema(self._find_owned_or_fail(user_id, row_id))
+
+    def remove(self, db, user_id, row_id) -> None:
+        del self._rows[self._find_owned_or_fail(user_id, row_id).id]
+
+
+class FakeAccountsService(FakeStore):
+    """Réplica en memoria de las cuentas: borrado lógico (`is_active=False`)."""
+
+    def _visible(self, row, user_id) -> bool:
+        return row.user_id == user_id and row.is_active
+
+    def _schema(self, row) -> AccountSchema:
         return AccountSchema(
             id=str(row.id),
             name=row.name,
@@ -142,64 +145,27 @@ class FakeAccountsService:
             updated_at=_iso_z(row.updated_at),
         )
 
+    def create(self, db, user_id, dto):
+        row = self._insert(
+            user_id, name=dto.name, type=dto.type.value, balance=dto.initial_balance, is_active=True
+        )
+        return self._schema(row)
 
-class FakeCategoriesService:
-    """Réplica en memoria de `CategoriesService` (mismo contrato/aislamiento)."""
+    def update(self, db, user_id, row_id, dto):
+        row = self._find_owned_or_fail(user_id, row_id)
+        return self._schema(self._touch(row, name=dto.name, type=dto.type.value))
+
+    def remove(self, db, user_id, row_id) -> None:
+        self._touch(self._find_owned_or_fail(user_id, row_id), is_active=False)
+
+
+class FakeCategoriesService(FakeStore):
+    """Réplica en memoria de los sobres presupuestarios."""
 
     DEFAULT_COLOR = "#6B7280"
     DEFAULT_ICON = "tag"
 
-    def __init__(self) -> None:
-        self._rows: dict[uuid.UUID, SimpleNamespace] = {}
-
-    def list_for_user(self, db, user_id):
-        rows = [r for r in self._rows.values() if r.user_id == user_id]
-        rows.sort(key=lambda r: r.created_at)
-        return [self._to_schema(r) for r in rows]
-
-    def create(self, db, user_id, dto):
-        now = dt.datetime.now(tz=dt.timezone.utc)
-        row = SimpleNamespace(
-            id=uuid.uuid4(),
-            user_id=user_id,
-            name=dto.name,
-            target_amount=dto.target_amount,
-            color=dto.color or self.DEFAULT_COLOR,
-            icon=dto.icon or self.DEFAULT_ICON,
-            created_at=now,
-            updated_at=now,
-        )
-        self._rows[row.id] = row
-        return self._to_schema(row)
-
-    def get_for_user(self, db, user_id, category_id):
-        return self._to_schema(self._find_owned_or_fail(user_id, category_id))
-
-    def update(self, db, user_id, category_id, dto):
-        row = self._find_owned_or_fail(user_id, category_id)
-        row.name = dto.name
-        row.target_amount = dto.target_amount
-        row.color = dto.color
-        row.icon = dto.icon
-        row.updated_at = dt.datetime.now(tz=dt.timezone.utc)
-        return self._to_schema(row)
-
-    def remove(self, db, user_id, category_id) -> None:
-        row = self._find_owned_or_fail(user_id, category_id)
-        del self._rows[row.id]
-
-    def _find_owned_or_fail(self, user_id, category_id) -> SimpleNamespace:
-        try:
-            category_uuid = uuid.UUID(str(category_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=_NOT_FOUND_MESSAGE) from exc
-        row = self._rows.get(category_uuid)
-        if row is None or row.user_id != user_id:
-            raise HTTPException(status_code=404, detail=_NOT_FOUND_MESSAGE)
-        return row
-
-    @staticmethod
-    def _to_schema(row: SimpleNamespace) -> CategorySchema:
+    def _schema(self, row) -> CategorySchema:
         return CategorySchema(
             id=str(row.id),
             name=row.name,
@@ -210,54 +176,29 @@ class FakeCategoriesService:
             updated_at=_iso_z(row.updated_at),
         )
 
+    def create(self, db, user_id, dto):
+        row = self._insert(
+            user_id,
+            name=dto.name,
+            target_amount=dto.target_amount,
+            color=dto.color or self.DEFAULT_COLOR,
+            icon=dto.icon or self.DEFAULT_ICON,
+        )
+        return self._schema(row)
 
-@pytest.fixture
-def fake_accounts(monkeypatch) -> FakeAccountsService:
-    svc = FakeAccountsService()
-    monkeypatch.setattr(accounts_api, "accounts_service", svc)
-    return svc
-
-
-@pytest.fixture
-def fake_categories(monkeypatch) -> FakeCategoriesService:
-    svc = FakeCategoriesService()
-    monkeypatch.setattr(categories_api, "categories_service", svc)
-    return svc
-
-
-class _FakeOwnedStore:
-    """Almacén en memoria con el mismo aislamiento por usuario que los servicios."""
-
-    def __init__(self) -> None:
-        self._rows: dict[uuid.UUID, SimpleNamespace] = {}
-
-    def _insert(self, user_id, **fields) -> SimpleNamespace:
-        now = dt.datetime.now(tz=dt.timezone.utc)
-        row = SimpleNamespace(id=uuid.uuid4(), user_id=user_id, created_at=now, updated_at=now, **fields)
-        self._rows[row.id] = row
-        return row
-
-    def _list(self, user_id) -> list[SimpleNamespace]:
-        rows = [r for r in self._rows.values() if r.user_id == user_id]
-        rows.sort(key=lambda r: r.created_at, reverse=True)
-        return rows
-
-    def _find_owned_or_fail(self, user_id, row_id) -> SimpleNamespace:
-        try:
-            row_uuid = uuid.UUID(str(row_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=_NOT_FOUND_MESSAGE) from exc
-        row = self._rows.get(row_uuid)
-        if row is None or row.user_id != user_id:
-            raise HTTPException(status_code=404, detail=_NOT_FOUND_MESSAGE)
-        return row
-
-    def remove(self, db, user_id, row_id) -> None:
-        del self._rows[self._find_owned_or_fail(user_id, row_id).id]
+    def update(self, db, user_id, row_id, dto):
+        row = self._find_owned_or_fail(user_id, row_id)
+        fields = dict(name=dto.name, target_amount=dto.target_amount, color=dto.color, icon=dto.icon)
+        return self._schema(self._touch(row, **fields))
 
 
-class FakeTasksService(_FakeOwnedStore):
-    """Réplica en memoria de `TasksService` (mismo contrato/aislamiento)."""
+class FakeTasksService(FakeStore):
+    """Réplica en memoria de las tareas (más recientes primero, con filtros)."""
+
+    newest_first = True
+
+    def _schema(self, row):
+        return task_to_response(row)
 
     def list_for_user(self, db, user_id, filters):
         rows = self._list(user_id)
@@ -265,7 +206,7 @@ class FakeTasksService(_FakeOwnedStore):
             rows = [r for r in rows if r.status == filters.status.value]
         if filters.priority is not None:
             rows = [r for r in rows if r.priority == filters.priority.value]
-        return [task_to_response(r) for r in rows]
+        return [self._schema(r) for r in rows]
 
     def create(self, db, user_id, dto):
         row = self._insert(
@@ -276,56 +217,62 @@ class FakeTasksService(_FakeOwnedStore):
             status=(dto.status.value if dto.status else "pending"),
             due_date=dto.due_date,
         )
-        return task_to_response(row)
+        return self._schema(row)
 
-    def get_for_user(self, db, user_id, task_id):
-        return task_to_response(self._find_owned_or_fail(user_id, task_id))
-
-    def update(self, db, user_id, task_id, dto):
+    def update(self, db, user_id, row_id, dto):
         sent = dto.model_fields_set
         if not sent:
             raise HTTPException(status_code=400, detail=EMPTY_UPDATE_MESSAGE)
-        row = self._find_owned_or_fail(user_id, task_id)
+        row = self._find_owned_or_fail(user_id, row_id)
         for field in sent:
             value = getattr(dto, field)
             if value is None and field in {"title", "priority", "status"}:
                 continue
             setattr(row, field, value.value if hasattr(value, "value") else value)
-        row.updated_at = dt.datetime.now(tz=dt.timezone.utc)
-        return task_to_response(row)
+        return self._schema(self._touch(row))
 
 
-class FakeNotesService(_FakeOwnedStore):
-    """Réplica en memoria de `NotesService` (mismo contrato/aislamiento)."""
+class FakeNotesService(FakeStore):
+    """Réplica en memoria de las notas (más recientes primero)."""
 
-    def list_for_user(self, db, user_id):
-        return [note_to_response(r) for r in self._list(user_id)]
+    newest_first = True
+
+    def _schema(self, row):
+        return note_to_response(row)
 
     def create(self, db, user_id, dto):
         row = self._insert(user_id, title=dto.title, content=dto.content, audio_url=dto.audio_url)
-        return note_to_response(row)
+        return self._schema(row)
 
-    def get_for_user(self, db, user_id, note_id):
-        return note_to_response(self._find_owned_or_fail(user_id, note_id))
+    def update(self, db, user_id, row_id, dto):
+        row = self._find_owned_or_fail(user_id, row_id)
+        return self._schema(self._touch(row, title=dto.title, content=dto.content, audio_url=dto.audio_url))
 
-    def update(self, db, user_id, note_id, dto):
-        row = self._find_owned_or_fail(user_id, note_id)
-        row.title, row.content, row.audio_url = dto.title, dto.content, dto.audio_url
-        row.updated_at = dt.datetime.now(tz=dt.timezone.utc)
-        return note_to_response(row)
+
+def _install(monkeypatch, api_module, name: str, fake):
+    """Reemplaza un servicio de la API por su doble en memoria."""
+    monkeypatch.setattr(api_module, name, fake)
+    return fake
+
+
+@pytest.fixture
+def fake_accounts(monkeypatch) -> FakeAccountsService:
+    return _install(monkeypatch, accounts_api, "accounts_service", FakeAccountsService())
+
+
+@pytest.fixture
+def fake_categories(monkeypatch) -> FakeCategoriesService:
+    return _install(monkeypatch, categories_api, "categories_service", FakeCategoriesService())
 
 
 @pytest.fixture
 def fake_tasks(monkeypatch) -> FakeTasksService:
-    svc = FakeTasksService()
-    monkeypatch.setattr(tasks_api, "tasks_service", svc)
-    return svc
+    return _install(monkeypatch, tasks_api, "tasks_service", FakeTasksService())
 
 
 @pytest.fixture
 def fake_notes(monkeypatch, tmp_path) -> FakeNotesService:
-    svc = FakeNotesService()
-    monkeypatch.setattr(notes_api, "notes_service", svc)
+    svc = _install(monkeypatch, notes_api, "notes_service", FakeNotesService())
     # Los audios subidos en tests van a un directorio temporal.
     monkeypatch.setattr(notes_module, "AUDIO_UPLOAD_DIR", tmp_path / "audio")
     return svc

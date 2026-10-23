@@ -1,7 +1,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { registerRequest } from '../lib/api'
+import { api } from '../lib/api'
 import {
   buildRegisterPayload,
   EMPTY_REGISTER_VALUES,
@@ -18,7 +18,7 @@ export function useRegisterForm() {
   const canSubmit = computed(() => isRegisterValid(values) && !submitting.value && !done.value)
 
   async function registerAndRedirect() {
-    await registerRequest(buildRegisterPayload(values))
+    await api.registerRequest(buildRegisterPayload(values))
     done.value = true
     window.setTimeout(() => {
       router.replace({ path: '/login', state: { registered: true } })

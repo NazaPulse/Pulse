@@ -1,16 +1,10 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
+import { ECG_PATHS, NAV_ITEMS } from '@shared/uiConfig'
 import { useAuth } from '../auth/useAuth'
-import type { IconName } from '../lib/icons'
+import { EcgLine } from './EcgLine'
 import { Icon } from './Icon'
 import { PulseLogo } from './PulseLogo'
-
-const NAV_ITEMS: { to: string; label: string; icon: IconName }[] = [
-  { to: '/dashboard', label: 'Finanzas', icon: 'finance' },
-  { to: '/tasks', label: 'Tareas', icon: 'tasks' },
-  { to: '/notes', label: 'Notas', icon: 'notes' },
-  { to: '/pomodoro', label: 'Pomodoro', icon: 'timer' },
-]
 
 /** Estructura común de las rutas protegidas: sidebar (desktop), tab bar (móvil) y contenido. */
 export function AppLayout() {
@@ -46,26 +40,7 @@ export function AppLayout() {
               Sesión activa
             </span>
           </div>
-          <svg viewBox="0 0 200 36" fill="none" className="mt-3 h-9 w-full" aria-hidden="true">
-            <path
-              d="M0 18h52l10-14 14 28 12-14h112"
-              stroke="#00F0FF"
-              strokeOpacity=".35"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M0 18h52l10-14 14 28 12-14h112"
-              stroke="#00F0FF"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              pathLength={200}
-              strokeDasharray="26 174"
-              className="animate-ecg drop-shadow-[0_0_3px_#00F0FF]"
-            />
-          </svg>
+          <EcgLine d={ECG_PATHS.sidebar} viewBox="0 0 200 36" className="mt-3 h-9 w-full" />
           <button
             type="button"
             onClick={handleLogout}

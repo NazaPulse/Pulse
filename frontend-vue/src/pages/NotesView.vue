@@ -1,52 +1,28 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-
-import Alert from '../components/Alert.vue'
+import { NOTES_LOAD_ERROR, NOTE_DELETE_ERROR, emptyNotesMessage } from '@shared/noteComposer'
+import { deleteDialogDescriptionFor } from '@shared/utils/deleteTarget'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import ErrorNotice from '../components/ErrorNotice.vue'
+import LoadingBlock from '../components/LoadingBlock.vue'
 import NoteCard from '../components/Notes/NoteCard.vue'
 import NoteComposer from '../components/Notes/NoteComposer.vue'
 import PageHeader from '../components/PageHeader.vue'
-import Spinner from '../components/Spinner.vue'
-import { deleteNote, extractErrorMessage, getNotes } from '../lib/api'
+import { useConfirmDelete } from '../composables/useConfirmDelete'
+import { useLoader } from '../composables/useLoader'
+import { api } from '../lib/api'
 import type { Note } from '../types/productivity'
 
-const notes = ref<Note[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
-const deleteTarget = ref<Note | null>(null)
-const deleting = ref(false)
-
-async function loadNotes() {
-  error.value = null
-  try {
-    notes.value = await getNotes()
-  } catch (err) {
-    error.value = extractErrorMessage(err, 'No se pudieron cargar tus notas.')
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => void loadNotes())
-
-function handleCreated(note: Note) {
-  notes.value = [note, ...notes.value]
-}
-
-async function handleConfirmDelete() {
-  const target = deleteTarget.value
-  if (!target) return
-  deleting.value = true
-  try {
-    await deleteNote(target.id)
-    notes.value = notes.value.filter((n) => n.id !== target.id)
-    deleteTarget.value = null
-  } catch (err) {
-    error.value = extractErrorMessage(err, 'No se pudo eliminar la nota.')
-  } finally {
-    deleting.value = false
-  }
-}
+const { data: notes, loading, error } = useLoader<Note[]>(() => api.getNotes(), [], NOTES_LOAD_ERROR)
+const { target, setTarget, deleting, confirm } = useConfirmDelete<Note>({
+  remove: (note) => api.deleteNote(note.id),
+  onRemoved: (note) => {
+    notes.value = notes.value.filter((n) => n.id !== note.id)
+  },
+  onError: (message) => {
+    error.value = message
+  },
+  errorMessage: NOTE_DELETE_ERROR,
+})
 </script>
 
 <template>
@@ -58,38 +34,26 @@ async function handleConfirmDelete() {
     />
 
     <div class="mt-6">
-      <NoteComposer @created="handleCreated" />
+      <NoteComposer @created="(note) => (notes = [note, ...notes])" />
     </div>
 
-    <div v-if="error" class="mt-6">
-      <Alert variant="error">{{ error }}</Alert>
-    </div>
+    <ErrorNotice :message="error" />
 
-    <div v-if="loading" class="mt-16 flex justify-center">
-      <Spinner svg-class="h-8 w-8 text-accent" />
-    </div>
-    <div
-      v-else-if="notes.length === 0"
-      class="mt-6 pulse-empty px-6 py-10 text-center text-sm text-fg-muted"
-    >
-      Todavía no tenés notas.
+    <LoadingBlock v-if="loading" />
+    <div v-else-if="notes.length === 0" class="mt-6 pulse-empty px-6 py-10 text-center text-sm text-fg-muted">
+      {{ emptyNotesMessage }}
     </div>
     <div v-else class="mt-6 grid gap-4 sm:grid-cols-2">
-      <NoteCard
-        v-for="note in notes"
-        :key="note.id"
-        :note="note"
-        @delete="(n) => (deleteTarget = n)"
-      />
+      <NoteCard v-for="note in notes" :key="note.id" :note="note" @delete="setTarget" />
     </div>
 
     <ConfirmDialog
-      v-if="deleteTarget"
+      v-if="target"
       title="Eliminar nota"
-      :description="`¿Seguro que querés eliminar &quot;${deleteTarget.title}&quot;? Esta acción no se puede deshacer.`"
+      :description="deleteDialogDescriptionFor(target.title)"
       :loading="deleting"
-      @confirm="handleConfirmDelete"
-      @cancel="deleteTarget = null"
+      @confirm="confirm"
+      @cancel="setTarget(null)"
     />
   </section>
 </template>

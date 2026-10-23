@@ -17,13 +17,43 @@ import type {
   TransactionFilters,
   UserPublic,
 } from './types'
+import { productivityApi } from './productivityApi'
 
 /** Subconjunto de la API de una instancia de axios que usa el cliente. */
 export interface HttpClient {
   get<T>(url: string, config?: { params?: Record<string, unknown> }): Promise<{ data: T }>
-  post<T>(url: string, body?: unknown): Promise<{ data: T }>
+  post<T>(url: string, body?: unknown, config?: RequestOptions): Promise<{ data: T }>
   put<T>(url: string, body?: unknown): Promise<{ data: T }>
+  patch<T>(url: string, body?: unknown): Promise<{ data: T }>
   delete(url: string): Promise<unknown>
+}
+
+/** Opciones por pedido que usa el cliente (p. ej. subida de audio con timeout propio). */
+export interface RequestOptions {
+  headers?: Record<string, string>
+  timeout?: number
+}
+
+/** Lo único que se necesita de axios para crear la instancia HTTP de cada frontend. */
+export interface HttpFactory<T> {
+  create(config: { baseURL: string; headers: Record<string, string>; timeout: number }): T
+}
+
+/**
+ * Instancia HTTP común. `baseUrl` vacío => rutas relativas (mismo origen): el proxy de
+ * Vite reenvía `/api/*` al backend. Con valor => pega directo a esa URL.
+ */
+export function createHttp<T>(axios: HttpFactory<T>, baseUrl: string | undefined): T {
+  return axios.create({
+    baseURL: (baseUrl ?? '').trim(),
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 15_000,
+  })
+}
+
+/** `audio_url` es un path relativo (`/uploads/audio/...`) servido por el backend. */
+export function resolveMediaUrl(baseUrl: string, path: string): string {
+  return /^https?:\/\//.test(path) ? path : `${baseUrl}${path}`
 }
 
 function authApi(http: HttpClient) {
@@ -97,6 +127,7 @@ export function createApi(http: HttpClient) {
     ...accountsApi(http),
     ...categoriesApi(http),
     ...financesApi(http),
+    ...productivityApi(http),
   }
 }
 

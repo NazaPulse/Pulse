@@ -26,7 +26,7 @@ from app.schemas.transaction import (
     TransactionFilters,
     TransactionType,
 )
-from app.services.transactions import transactions_service
+from app.services import transactions as transactions_service
 
 router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
 

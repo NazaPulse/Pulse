@@ -1,66 +1,33 @@
 import { ref } from 'vue'
 import type { UnwrapNestedRefs } from 'vue'
 
-import {
-  createAccount,
-  createCategory,
-  createTransaction,
-  deleteAccount,
-  deleteCategory,
-  extractErrorMessage,
-  updateAccount,
-  updateCategory,
-} from '../lib/api'
-import type {
-  Account,
-  AccountCreateRequest,
-  Category,
-  CategoryUpdateRequest,
-  CreateTransactionDTO,
-} from '@shared/types'
+import { DELETE_ERROR, removeTarget, saveAccount, saveCategory } from '@shared/financeActions'
+import type { Account, AccountCreateRequest, Category, CategoryUpdateRequest, CreateTransactionDTO } from '@shared/types'
 import type { DeleteTarget } from '@shared/utils/deleteTarget'
+import { api } from '../lib/api'
+import { useConfirmDelete } from './useConfirmDelete'
 
 interface DashboardModalsOptions {
   reload: () => Promise<void>
   onError: (message: string) => void
 }
 
-function removeTarget(target: DeleteTarget): Promise<void> {
-  return target.kind === 'account' ? deleteAccount(target.item.id) : deleteCategory(target.item.id)
-}
-
-function useAccountModal(reload: () => Promise<void>) {
+export function useDashboardModals({ reload, onError }: DashboardModalsOptions) {
   const accountModalOpen = ref(false)
   const editingAccount = ref<Account | null>(null)
-
-  function openAccountModal(account: Account | null = null) {
-    editingAccount.value = account
-    accountModalOpen.value = true
-  }
+  const categoryModalOpen = ref(false)
+  const editingCategory = ref<Category | null>(null)
+  const transactionModalOpen = ref(false)
+  const confirmDelete = useConfirmDelete<DeleteTarget>({
+    remove: (target) => removeTarget(api, target),
+    onRemoved: reload,
+    onError,
+    errorMessage: DELETE_ERROR,
+  })
 
   function closeAccountModal() {
     accountModalOpen.value = false
     editingAccount.value = null
-  }
-
-  async function submitAccount(values: AccountCreateRequest) {
-    const editing = editingAccount.value
-    if (editing) await updateAccount(editing.id, { name: values.name, type: values.type })
-    else await createAccount(values)
-    closeAccountModal()
-    await reload()
-  }
-
-  return { accountModalOpen, editingAccount, openAccountModal, closeAccountModal, submitAccount }
-}
-
-function useCategoryModal(reload: () => Promise<void>) {
-  const categoryModalOpen = ref(false)
-  const editingCategory = ref<Category | null>(null)
-
-  function openCategoryModal(category: Category | null = null) {
-    editingCategory.value = category
-    categoryModalOpen.value = true
   }
 
   function closeCategoryModal() {
@@ -68,65 +35,44 @@ function useCategoryModal(reload: () => Promise<void>) {
     editingCategory.value = null
   }
 
-  async function submitCategory(values: CategoryUpdateRequest) {
-    const editing = editingCategory.value
-    if (editing) await updateCategory(editing.id, values)
-    else await createCategory(values)
-    closeCategoryModal()
-    await reload()
-  }
-
-  return { categoryModalOpen, editingCategory, openCategoryModal, closeCategoryModal, submitCategory }
-}
-
-function useTransactionModal(reload: () => Promise<void>) {
-  const transactionModalOpen = ref(false)
-
-  function setTransactionModalOpen(open: boolean) {
-    transactionModalOpen.value = open
-  }
-
-  async function submitTransaction(values: CreateTransactionDTO) {
-    await createTransaction(values)
-    transactionModalOpen.value = false
-    await reload()
-  }
-
-  return { transactionModalOpen, setTransactionModalOpen, submitTransaction }
-}
-
-function useDeleteConfirm({ reload, onError }: DashboardModalsOptions) {
-  const deleteTarget = ref<DeleteTarget | null>(null)
-  const deleting = ref(false)
-
-  function setDeleteTarget(target: DeleteTarget | null) {
-    deleteTarget.value = target
-  }
-
-  async function confirmDelete() {
-    const target = deleteTarget.value
-    if (!target) return
-    deleting.value = true
-    try {
-      await removeTarget(target)
-      deleteTarget.value = null
-      await reload()
-    } catch (err) {
-      onError(extractErrorMessage(err, 'No se pudo eliminar el registro.'))
-    } finally {
-      deleting.value = false
-    }
-  }
-
-  return { deleteTarget, deleting, setDeleteTarget, confirmDelete }
-}
-
-export function useDashboardModals(options: DashboardModalsOptions) {
   return {
-    ...useAccountModal(options.reload),
-    ...useCategoryModal(options.reload),
-    ...useTransactionModal(options.reload),
-    ...useDeleteConfirm(options),
+    accountModalOpen,
+    editingAccount,
+    openAccountModal(account: Account | null = null) {
+      editingAccount.value = account
+      accountModalOpen.value = true
+    },
+    closeAccountModal,
+    async submitAccount(values: AccountCreateRequest) {
+      await saveAccount(api, editingAccount.value, values)
+      closeAccountModal()
+      await reload()
+    },
+    categoryModalOpen,
+    editingCategory,
+    openCategoryModal(category: Category | null = null) {
+      editingCategory.value = category
+      categoryModalOpen.value = true
+    },
+    closeCategoryModal,
+    async submitCategory(values: CategoryUpdateRequest) {
+      await saveCategory(api, editingCategory.value, values)
+      closeCategoryModal()
+      await reload()
+    },
+    transactionModalOpen,
+    setTransactionModalOpen(open: boolean) {
+      transactionModalOpen.value = open
+    },
+    async submitTransaction(values: CreateTransactionDTO) {
+      await api.createTransaction(values)
+      transactionModalOpen.value = false
+      await reload()
+    },
+    deleteTarget: confirmDelete.target,
+    setDeleteTarget: confirmDelete.setTarget,
+    deleting: confirmDelete.deleting,
+    confirmDelete: confirmDelete.confirm,
   }
 }
 

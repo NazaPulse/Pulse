@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, SVGProps } from 'react'
 
 type ProgressRingProps = {
   /** Fracción completada, de 0 a 1. */
@@ -13,6 +13,11 @@ const STROKE = 12
 const RADIUS = (SIZE - STROKE) / 2 - 14
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
+/** Circunferencia centrada del anillo (pista, destello y trazo de progreso). */
+function Ring({ r, ...props }: SVGProps<SVGCircleElement> & { r: number }) {
+  return <circle cx={SIZE / 2} cy={SIZE / 2} r={r} fill="none" {...props} />
+}
+
 export function ProgressRing({ progress, colorClass, children }: ProgressRingProps) {
   const clamped = Math.min(1, Math.max(0, progress))
 
@@ -26,31 +31,17 @@ export function ProgressRing({ progress, colorClass, children }: ProgressRingPro
         aria-valuemax={100}
         aria-valuenow={Math.round(clamped * 100)}
       >
-        <circle
-          cx={SIZE / 2}
-          cy={SIZE / 2}
+        <Ring
           r={RADIUS + STROKE / 2 + 7}
-          fill="none"
           stroke="#7B8AA0"
           strokeOpacity=".4"
           strokeWidth="1.5"
           strokeDasharray="1 7"
           strokeLinecap="round"
         />
-        <circle
-          cx={SIZE / 2}
-          cy={SIZE / 2}
+        <Ring r={RADIUS} stroke="currentColor" strokeWidth={STROKE} className="text-line-strong" />
+        <Ring
           r={RADIUS}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={STROKE}
-          className="text-line-strong"
-        />
-        <circle
-          cx={SIZE / 2}
-          cy={SIZE / 2}
-          r={RADIUS}
-          fill="none"
           stroke="currentColor"
           strokeWidth={STROKE}
           strokeLinecap="round"

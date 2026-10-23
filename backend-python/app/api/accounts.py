@@ -12,7 +12,7 @@ from app.api.deps import CurrentUser, get_current_user
 from app.db.session import get_db
 from app.schemas.auth import ErrorResponse
 from app.schemas.finance import Account, AccountCreateRequest, AccountUpdateRequest
-from app.services.accounts import accounts_service
+from app.services import accounts as accounts_service
 
 router = APIRouter(prefix="/api/accounts", tags=["Accounts"])
 

@@ -1,7 +1,7 @@
 import { currencyFormatter } from '@shared/format'
 import type { FinanceSummary } from '@shared/types'
 
-import type { IconName } from '../../lib/icons'
+import type { IconName } from '@shared/icons'
 import { Icon } from '../Icon'
 
 type SummaryCardProps = {

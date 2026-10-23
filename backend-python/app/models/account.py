@@ -5,26 +5,18 @@ esquema.
 """
 from __future__ import annotations
 
-import datetime as dt
 import decimal
-import uuid
 
-from sqlalchemy import Boolean, DateTime, Numeric, String, func
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import Boolean, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
+from app.models.base import IdMixin, OwnedMixin, TimestampMixin
 
 
-class Account(Base):
+class Account(IdMixin, OwnedMixin, TimestampMixin, Base):
     __tablename__ = "accounts"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        primary_key=True,
-        server_default=func.gen_random_uuid(),
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     balance: Mapped[decimal.Decimal] = mapped_column(
@@ -33,12 +25,3 @@ class Account(Base):
     # Borrado lógico: DELETE /api/accounts/{id} marca is_active=False en lugar
     # de eliminar la fila (preserva integridad referencial con transacciones).
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-    updated_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
-    )

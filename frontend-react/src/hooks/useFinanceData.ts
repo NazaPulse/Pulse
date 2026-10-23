@@ -1,54 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { EMPTY_FINANCE_DATA, FINANCE_LOAD_ERROR, fetchFinanceData } from '@shared/financeActions'
+import { api } from '../lib/api'
+import { useLoader } from './useLoader'
 
-import {
-  extractErrorMessage,
-  getAccounts,
-  getCategories,
-  getFinanceSummary,
-  getTransactions,
-} from '../lib/api'
-import type { Account, Category, FinanceSummary, Transaction } from '@shared/types'
+const loadFinanceData = () => fetchFinanceData(api)
 
-export interface FinanceData {
-  accounts: Account[]
-  categories: Category[]
-  transactions: Transaction[]
-  summary: FinanceSummary | null
-}
-
-const EMPTY_DATA: FinanceData = { accounts: [], categories: [], transactions: [], summary: null }
-
-async function fetchFinanceData(): Promise<FinanceData> {
-  const [accounts, categories, transactions, summary] = await Promise.all([
-    getAccounts(),
-    getCategories(),
-    getTransactions(),
-    getFinanceSummary(),
-  ])
-  return { accounts, categories, transactions, summary }
-}
-
-// Recarga cuentas, sobres, historial y resumen juntos: cualquier alta o
-// baja impacta saldos y métricas. El spinner solo se muestra en la carga inicial.
+// El spinner solo se muestra en la carga inicial; los alta/baja recargan en segundo plano.
 export function useFinanceData() {
-  const [data, setData] = useState<FinanceData>(EMPTY_DATA)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const reload = useCallback(async () => {
-    setError(null)
-    try {
-      setData(await fetchFinanceData())
-    } catch (err) {
-      setError(extractErrorMessage(err, 'No se pudieron cargar tus datos financieros.'))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  return { data, loading, error, setError, reload }
+  return useLoader(loadFinanceData, EMPTY_FINANCE_DATA, FINANCE_LOAD_ERROR)
 }
+
+export type { FinanceData } from '@shared/financeActions'

@@ -1,4 +1,5 @@
-import { createApi, extractErrorMessage } from './api'
+import { createApi, createHttp, extractErrorMessage, resolveMediaUrl } from './api'
+import { audioFileName } from './productivityApi'
 import type { HttpClient } from './api'
 
 function fakeHttp() {
@@ -11,6 +12,7 @@ function fakeHttp() {
     get: respond('get'),
     post: respond('post'),
     put: respond('put'),
+    patch: respond('patch'),
     delete: respond('delete'),
   } as unknown as HttpClient
   return { http, calls }
@@ -67,6 +69,63 @@ describe('createApi', () => {
       ['get', '/api/transactions', { params: { account_id: 'a1' } }],
       ['get', '/api/transactions', { params: {} }],
     ])
+  })
+})
+
+describe('API de productividad', () => {
+  it('cada operación usa el método y la ruta de openapi.yaml', async () => {
+    const { http, calls } = fakeHttp()
+    const api = createApi(http)
+    const body = { any: 'payload' }
+    await api.getTasks({ status: 'pending', priority: undefined })
+    await api.createTask(body as never)
+    await api.updateTask('t1', body as never)
+    await api.deleteTask('t1')
+    await api.getNotes()
+    await api.createNote(body as never)
+    await api.deleteNote('n1')
+    expect(calls).toEqual([
+      ['get', '/api/tasks', { params: { status: 'pending' } }],
+      ['post', '/api/tasks', body],
+      ['patch', '/api/tasks/t1', body],
+      ['delete', '/api/tasks/t1'],
+      ['get', '/api/notes'],
+      ['post', '/api/notes', body],
+      ['delete', '/api/notes/n1'],
+    ])
+  })
+
+  it('uploadAudioNote envía multipart con timeout propio y nombre según el MIME', async () => {
+    const { http, calls } = fakeHttp()
+    const blob = new Blob(['x'], { type: 'audio/mp4;codecs=opus' })
+    await createApi(http).uploadAudioNote(blob)
+    const [method, url, form, config] = calls[0] as [string, string, FormData, Record<string, unknown>]
+    expect([method, url]).toEqual(['post', '/api/notes/upload-audio'])
+    expect((form.get('file') as File).name).toBe('nota-de-voz.m4a')
+    expect(config).toEqual({ headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60_000 })
+  })
+
+  it('audioFileName usa webm si el tipo es desconocido', () => {
+    expect(audioFileName(new Blob([''], { type: '' }))).toBe('nota-de-voz.webm')
+  })
+})
+
+describe('createHttp y resolveMediaUrl', () => {
+  it('crea la instancia con base, JSON y timeout', () => {
+    const create = vi.fn(() => 'instancia')
+    expect(createHttp({ create }, '  http://api  ')).toBe('instancia')
+    expect(create).toHaveBeenCalledWith({
+      baseURL: 'http://api',
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 15_000,
+    })
+    createHttp({ create }, undefined)
+    expect(create).toHaveBeenLastCalledWith(expect.objectContaining({ baseURL: '' }))
+  })
+
+  it('resolveMediaUrl respeta URLs absolutas y antepone la base a las relativas', () => {
+    expect(resolveMediaUrl('http://api', '/uploads/a.webm')).toBe('http://api/uploads/a.webm')
+    expect(resolveMediaUrl('http://api', 'https://cdn/a.webm')).toBe('https://cdn/a.webm')
   })
 })
 

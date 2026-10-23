@@ -1,15 +1,7 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { OwnedEntity, MoneyColumn } from './base.entity';
 import { Account } from './account.entity';
 import { Category } from './category.entity';
-import { NumericColumnTransformer } from '../common/numeric-column.transformer';
 
 export enum TransactionType {
   INCOME = 'income',
@@ -24,13 +16,7 @@ export enum TransactionType {
  * determina `type`.
  */
 @Entity({ name: 'transactions' })
-export class Transaction {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ name: 'user_id', type: 'uuid' })
-  userId!: string;
-
+export class Transaction extends OwnedEntity {
   @Column({ name: 'account_id', type: 'uuid' })
   accountId!: string;
 
@@ -45,12 +31,7 @@ export class Transaction {
   @JoinColumn({ name: 'category_id' })
   category?: Category | null;
 
-  @Column({
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    transformer: new NumericColumnTransformer(),
-  })
+  @MoneyColumn()
   amount!: number;
 
   @Column({ type: 'varchar', length: 20 })
@@ -61,10 +42,4 @@ export class Transaction {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   description!: string | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
 }

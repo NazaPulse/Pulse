@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ICON_PATHS } from '../lib/icons'
-import type { IconName } from '../lib/icons'
+import { ICON_PATHS } from '@shared/icons'
+import type { IconName } from '@shared/icons'
 
 /** Ícono de trazo (24×24) que hereda el color del texto (`currentColor`). */
 withDefaults(defineProps<{ name: IconName; svgClass?: string; strokeWidth?: number }>(), {

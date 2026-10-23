@@ -2,7 +2,7 @@ import { computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuth } from '../auth/useAuth'
-import { loginRequest } from '../lib/api'
+import { api } from '../lib/api'
 import { buildLoginPayload, EMPTY_LOGIN_VALUES, isLoginValid } from '@shared/utils/loginForm'
 import { useSubmission } from './useSubmission'
 
@@ -14,7 +14,7 @@ export function useLoginForm() {
   const canSubmit = computed(() => isLoginValid(values) && !submitting.value)
 
   async function loginAndEnter() {
-    const { access_token } = await loginRequest(buildLoginPayload(values))
+    const { access_token } = await api.loginRequest(buildLoginPayload(values))
     setToken(access_token)
     await router.replace('/dashboard')
   }

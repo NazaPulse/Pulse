@@ -25,7 +25,8 @@ from app.schemas.transaction import (
     Transaction as TransactionSchema,
     TransactionCreateRequest,
 )
-from app.services.transactions import INSUFFICIENT_FUNDS_MESSAGE, TransactionsService
+from app.services import transactions as transactions_service
+from app.services.transactions import INSUFFICIENT_FUNDS_MESSAGE
 
 ACCOUNT_ID = "7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f"
 CATEGORY_ID = "3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b"
@@ -266,7 +267,7 @@ def test_expense_debits_account_and_commits():
     account = _account("500.00")
     db = _db(account, _category())
 
-    result = TransactionsService().create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
+    result = transactions_service.create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
 
     assert account.balance == decimal.Decimal("379.25")
     db.add.assert_called_once()
@@ -282,7 +283,7 @@ def test_expense_insufficient_funds_returns_400_and_rolls_back():
     db = _db(account, _category())
 
     with pytest.raises(HTTPException) as exc:
-        TransactionsService().create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
+        transactions_service.create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
 
     assert exc.value.status_code == 400
     assert exc.value.detail == INSUFFICIENT_FUNDS_MESSAGE
@@ -297,7 +298,7 @@ def test_foreign_or_missing_category_returns_404_and_rolls_back():
     db = _db(account, None)
 
     with pytest.raises(HTTPException) as exc:
-        TransactionsService().create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
+        transactions_service.create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
 
     assert exc.value.status_code == 404
     assert account.balance == decimal.Decimal("500.00")
@@ -308,7 +309,7 @@ def test_foreign_or_missing_account_returns_404_and_rolls_back():
     db = _db(None, None)
 
     with pytest.raises(HTTPException) as exc:
-        TransactionsService().create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
+        transactions_service.create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
 
     assert exc.value.status_code == 404
     db.rollback.assert_called_once()
@@ -319,7 +320,7 @@ def test_commit_failure_rolls_back():
     db.commit.side_effect = RuntimeError("db down")
 
     with pytest.raises(RuntimeError):
-        TransactionsService().create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
+        transactions_service.create(db, uuid.uuid4(), TransactionCreateRequest(**EXPENSE))
 
     db.rollback.assert_called_once()
 
@@ -331,7 +332,7 @@ def test_income_credits_account_without_category():
         amount=3500, type="income", account_id=ACCOUNT_ID, date="2026-09-01T12:00:00.000Z"
     )
 
-    result = TransactionsService().create(db, uuid.uuid4(), dto)
+    result = transactions_service.create(db, uuid.uuid4(), dto)
 
     assert account.balance == decimal.Decimal("3600.00")
     assert db.scalar.call_count == 1  # no consulta categoría

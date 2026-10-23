@@ -1,20 +1,12 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity } from 'typeorm';
+import { TimestampedEntity } from './base.entity';
 
 /**
  * Mapea la tabla `users` definida en init.sql (raíz del repo).
  * No debe alterar el esquema: `synchronize` está deshabilitado.
  */
 @Entity({ name: 'users' })
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
+export class User extends TimestampedEntity {
   @Column({ type: 'varchar', length: 255, unique: true })
   email!: string;
 
@@ -23,10 +15,4 @@ export class User {
 
   @Column({ name: 'full_name', type: 'varchar', length: 255, nullable: true })
   fullName!: string | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
 }

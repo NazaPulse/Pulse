@@ -11,7 +11,8 @@ from app.api.deps import CurrentUser, get_current_user
 from app.db.session import get_db
 from app.schemas.auth import ErrorResponse
 from app.schemas.productivity import AudioUploadResponse, Note, NoteCreateRequest, NoteUpdateRequest
-from app.services.notes import notes_service, save_audio
+from app.services import notes as notes_service
+from app.services.notes import save_audio
 
 router = APIRouter(prefix="/api/notes", tags=["Notes"])
 

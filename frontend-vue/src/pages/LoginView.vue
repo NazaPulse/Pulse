@@ -1,66 +1,33 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
-
-import Alert from '../components/Alert.vue'
+import { LOGIN_COPY, LOGIN_FIELDS } from '@shared/authForms'
 import AuthCard from '../components/AuthCard.vue'
-import Field from '../components/Field.vue'
-import SubmitButton from '../components/SubmitButton.vue'
+import AuthFooter from '../components/AuthFooter.vue'
+import AuthForm from '../components/AuthForm.vue'
 import { useLoginForm } from '../composables/useLoginForm'
 
 // Bandera puesta por RegisterView al redirigir tras un alta exitosa.
 const justRegistered = Boolean(window.history.state?.registered)
 
-const { values, submitting, error, canSubmit, handleSubmit } = useLoginForm()
+const form = useLoginForm()
 </script>
 
 <template>
-  <AuthCard title="Iniciar sesión" subtitle="Accedé a tu cuenta de Pulse">
-    <form class="flex flex-col gap-4" novalidate @submit.prevent="handleSubmit">
-      <Alert v-if="justRegistered" variant="success">
-        Cuenta creada correctamente. Iniciá sesión para continuar.
-      </Alert>
-
-      <Alert v-if="error" variant="error">{{ error }}</Alert>
-
-      <Field
-        v-model="values.email"
-        label="Email"
-        type="email"
-        name="email"
-        autocomplete="email"
-        placeholder="usuario@pulse.app"
-        :disabled="submitting"
-        required
-      />
-
-      <Field
-        v-model="values.password"
-        label="Contraseña"
-        type="password"
-        name="password"
-        autocomplete="current-password"
-        placeholder="••••••••••••"
-        :disabled="submitting"
-        required
-      />
-
-      <SubmitButton
-        :loading="submitting"
-        :disabled="!canSubmit"
-        loading-label="Ingresando…"
-      >
-        Ingresar
-      </SubmitButton>
-    </form>
+  <AuthCard :title="LOGIN_COPY.title" :subtitle="LOGIN_COPY.subtitle">
+    <AuthForm
+      :fields="LOGIN_FIELDS"
+      :values="form.values"
+      :copy="LOGIN_COPY"
+      :show-success="justRegistered"
+      :locked="form.submitting.value"
+      :submitting="form.submitting.value"
+      :can-submit="form.canSubmit.value"
+      :error="form.error.value"
+      @update:field="(key, value) => Object.assign(form.values, { [key]: value })"
+      @submit="form.handleSubmit"
+    />
 
     <template #footer>
-      ¿No tenés cuenta?
-      <RouterLink
-        to="/register"
-        class="font-semibold text-accent hover:text-accent-hover"
-      >
-        Registrate
-      </RouterLink>
+      <AuthFooter :copy="LOGIN_COPY" />
     </template>
   </AuthCard>
 </template>

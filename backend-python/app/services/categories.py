@@ -44,77 +44,77 @@ def _to_response(category: Category) -> CategorySchema:
     )
 
 
-class CategoriesService:
-    def list_for_user(self, db: Session, user_id: uuid.UUID) -> list[CategorySchema]:
-        rows = db.scalars(
-            select(Category)
-            .where(Category.user_id == user_id)
-            .order_by(Category.created_at.asc())
-        ).all()
-        return [_to_response(row) for row in rows]
+def list_for_user(db: Session, user_id: uuid.UUID) -> list[CategorySchema]:
+    rows = db.scalars(
+        select(Category)
+        .where(Category.user_id == user_id)
+        .order_by(Category.created_at.asc())
+    ).all()
+    return [_to_response(row) for row in rows]
 
-    def create(
-        self, db: Session, user_id: uuid.UUID, dto: CategoryCreateRequest
-    ) -> CategorySchema:
-        category = Category(
-            user_id=user_id,
-            name=dto.name,
-            target_amount=dto.target_amount,
-            color=dto.color or DEFAULT_COLOR,
-            icon=dto.icon or DEFAULT_ICON,
+
+def create(
+    db: Session, user_id: uuid.UUID, dto: CategoryCreateRequest
+) -> CategorySchema:
+    category = Category(
+        user_id=user_id,
+        name=dto.name,
+        target_amount=dto.target_amount,
+        color=dto.color or DEFAULT_COLOR,
+        icon=dto.icon or DEFAULT_ICON,
+    )
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return _to_response(category)
+
+
+def get_for_user(
+    db: Session, user_id: uuid.UUID, category_id: str
+) -> CategorySchema:
+    category = _find_owned_or_fail(db, user_id, category_id)
+    return _to_response(category)
+
+
+def update(
+    db: Session,
+    user_id: uuid.UUID,
+    category_id: str,
+    dto: CategoryUpdateRequest,
+) -> CategorySchema:
+    category = _find_owned_or_fail(db, user_id, category_id)
+    category.name = dto.name
+    category.target_amount = dto.target_amount
+    category.color = dto.color
+    category.icon = dto.icon
+    db.commit()
+    db.refresh(category)
+    return _to_response(category)
+
+
+def remove(db: Session, user_id: uuid.UUID, category_id: str) -> None:
+    category = _find_owned_or_fail(db, user_id, category_id)
+    db.delete(category)
+    db.commit()
+
+
+def _find_owned_or_fail(
+    db: Session, user_id: uuid.UUID, category_id: str
+) -> Category:
+    """Aislamiento por usuario: cualquier operación por `id` filtra siempre
+    por `user_id`. Un `id` de otro usuario (o inexistente, o con formato
+    inválido) responde `404` — nunca revela si el recurso existe para
+    otro usuario."""
+    try:
+        category_uuid = uuid.UUID(str(category_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE) from exc
+
+    category = db.scalar(
+        select(Category).where(
+            Category.id == category_uuid, Category.user_id == user_id
         )
-        db.add(category)
-        db.commit()
-        db.refresh(category)
-        return _to_response(category)
-
-    def get_for_user(
-        self, db: Session, user_id: uuid.UUID, category_id: str
-    ) -> CategorySchema:
-        category = self._find_owned_or_fail(db, user_id, category_id)
-        return _to_response(category)
-
-    def update(
-        self,
-        db: Session,
-        user_id: uuid.UUID,
-        category_id: str,
-        dto: CategoryUpdateRequest,
-    ) -> CategorySchema:
-        category = self._find_owned_or_fail(db, user_id, category_id)
-        category.name = dto.name
-        category.target_amount = dto.target_amount
-        category.color = dto.color
-        category.icon = dto.icon
-        db.commit()
-        db.refresh(category)
-        return _to_response(category)
-
-    def remove(self, db: Session, user_id: uuid.UUID, category_id: str) -> None:
-        category = self._find_owned_or_fail(db, user_id, category_id)
-        db.delete(category)
-        db.commit()
-
-    def _find_owned_or_fail(
-        self, db: Session, user_id: uuid.UUID, category_id: str
-    ) -> Category:
-        """Aislamiento por usuario: cualquier operación por `id` filtra siempre
-        por `user_id`. Un `id` de otro usuario (o inexistente, o con formato
-        inválido) responde `404` — nunca revela si el recurso existe para
-        otro usuario."""
-        try:
-            category_uuid = uuid.UUID(str(category_id))
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE) from exc
-
-        category = db.scalar(
-            select(Category).where(
-                Category.id == category_uuid, Category.user_id == user_id
-            )
-        )
-        if category is None:
-            raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
-        return category
-
-
-categories_service = CategoriesService()
+    )
+    if category is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND_MESSAGE)
+    return category

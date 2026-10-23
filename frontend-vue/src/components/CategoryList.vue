@@ -1,27 +1,15 @@
 <script setup lang="ts">
+import { tintedChipStyle } from '@shared/chartPalette'
+import { currencyFormatter } from '@shared/format'
 import type { Category } from '@shared/types'
-
-import { tintedChipStyle } from '../lib/chartPalette'
+import RowActions from './RowActions.vue'
 
 defineProps<{ categories: Category[] }>()
 const emit = defineEmits<{ edit: [category: Category]; remove: [category: Category] }>()
-
-const currencyFormatter = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  maximumFractionDigits: 2,
-})
-
-function format(value: number): string {
-  return currencyFormatter.format(value)
-}
 </script>
 
 <template>
-  <p
-    v-if="categories.length === 0"
-    class="pulse-empty px-4 py-6 text-center text-sm text-fg-muted"
-  >
+  <p v-if="categories.length === 0" class="pulse-empty px-4 py-6 text-center text-sm text-fg-muted">
     Todavía no tenés sobres de presupuesto. Creá el primero con el botón de arriba.
   </p>
 
@@ -42,45 +30,11 @@ function format(value: number): string {
           <p class="truncate text-sm font-semibold text-fg">{{ category.name }}</p>
           <p class="text-xs text-fg-muted">{{ category.icon }}</p>
           <p class="mt-0.5 text-base font-semibold text-fg">
-            {{ format(category.target_amount) }}
+            {{ currencyFormatter.format(category.target_amount) }}
           </p>
         </div>
       </div>
-
-      <div class="flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          :aria-label="`Editar ${category.name}`"
-          class="rounded-lg p-2 text-fg-dim transition hover:bg-white/10 hover:text-accent"
-          @click="emit('edit', category)"
-        >
-          <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
-            <path
-              d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          :aria-label="`Eliminar ${category.name}`"
-          class="rounded-lg p-2 text-fg-dim transition hover:bg-danger/10 hover:text-danger-soft"
-          @click="emit('remove', category)"
-        >
-          <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
-            <path
-              d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-.7 12.1A2 2 0 0 1 14.3 21H9.7a2 2 0 0 1-2-1.9L7 7"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
-      </div>
+      <RowActions editable :name="category.name" @edit="emit('edit', category)" @remove="emit('remove', category)" />
     </li>
   </ul>
 </template>
