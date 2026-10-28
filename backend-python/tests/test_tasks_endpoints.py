@@ -6,7 +6,7 @@ import datetime as dt
 
 TASK_KEYS = {
     "id", "title", "description", "priority", "status",
-    "due_date", "user_id", "created_at", "updated_at",
+    "due_date", "estimated_minutes", "user_id", "created_at", "updated_at",
 }
 
 
@@ -178,3 +178,24 @@ def test_delete_task_returns_204(client, token_for):
     assert r.status_code == 204
     assert r.content == b""
     assert client.get(f"/api/tasks/{created['id']}", headers=h).status_code == 404
+
+
+def test_estimated_minutes_roundtrip_and_validation(client, token_for):
+    _, token = token_for()
+    r = client.post("/api/tasks", json={"title": "T", "estimated_minutes": 90}, headers=auth_headers(token))
+    assert r.status_code == 201
+    assert r.json()["estimated_minutes"] == 90
+
+    url = f"/api/tasks/{r.json()['id']}"
+    r = client.patch(url, json={"estimated_minutes": None}, headers=auth_headers(token))
+    assert r.json()["estimated_minutes"] is None
+
+    r = client.post("/api/tasks", json={"title": "T", "estimated_minutes": "x"}, headers=auth_headers(token))
+    assert r.status_code == 400
+    assert r.json()["message"] == [
+        "estimated_minutes must not be greater than 1440",
+        "estimated_minutes must not be less than 5",
+        "estimated_minutes must be an integer number",
+    ]
+    r = client.post("/api/tasks", json={"title": "T", "estimated_minutes": 2}, headers=auth_headers(token))
+    assert r.json()["message"] == ["estimated_minutes must not be less than 5"]

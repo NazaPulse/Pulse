@@ -2,18 +2,26 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { formatClock } from '@shared/format'
 import { ChimePlayer, completionMessage, pomodoroTabTitle } from '@shared/pomodoro'
+import { interruptedFocusMinutes } from '@shared/schedule'
 import type { PomodoroMode } from '@shared/pomodoro'
+import { useFocusTarget } from './useFocusTarget'
 import { usePomodoro } from './usePomodoro'
 
-/** Reloj + aviso sonoro + mensaje de fin de bloque + título de la pestaña. */
+/** Reloj + aviso sonoro + mensaje de fin de bloque + título de la pestaña + bloque enfocado. */
 export function usePomodoroSession() {
   const chime = new ChimePlayer()
   const message = ref<string | null>(null)
+  const focus = useFocusTarget()
 
   const timer = usePomodoro({
     onComplete: (finished, next) => {
       chime.play()
-      message.value = completionMessage(finished, next)
+      const text = completionMessage(finished, next)
+      message.value = text
+      if (finished !== 'work') return
+      void focus.recordSession().then((recorded) => {
+        if (recorded) message.value = `${text} ${recorded}`
+      })
     },
   })
   const clock = computed(() => formatClock(timer.remainingMs.value))
@@ -29,6 +37,15 @@ export function usePomodoroSession() {
     { immediate: true },
   )
 
+  /** Un bloque de trabajo interrumpido (reinicio o cambio de modo) también suma sus minutos. */
+  function recordInterrupted() {
+    if (timer.mode.value !== 'work') return
+    const minutes = interruptedFocusMinutes(timer.durationMs.value - timer.remainingMs.value)
+    void focus.recordSession(minutes).then((recorded) => {
+      if (recorded) message.value = recorded
+    })
+  }
+
   onBeforeUnmount(() => {
     document.title = originalTitle
     chime.dispose()
@@ -38,6 +55,7 @@ export function usePomodoroSession() {
     timer,
     clock,
     message,
+    focus,
     start() {
       chime.unlock()
       message.value = null
@@ -45,10 +63,12 @@ export function usePomodoroSession() {
     },
     selectMode(mode: PomodoroMode) {
       message.value = null
+      recordInterrupted()
       timer.selectMode(mode)
     },
     reset() {
       message.value = null
+      recordInterrupted()
       timer.reset()
     },
   }

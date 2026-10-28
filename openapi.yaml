@@ -37,6 +37,11 @@ info:
     - `GET/PUT/DELETE /api/notes/{id}`
     - `POST /api/notes/upload-audio` (`multipart/form-data`)
 
+    Issue #23 — **Cronograma Diario (Gantt)**: bloques de tiempo
+    (`TimeBlock`) planificados vs. reales, aislados por usuario. Requiere JWT:
+    - `GET/POST /api/schedule`
+    - `PATCH/DELETE /api/schedule/{id}`
+
     La documentación interactiva (Swagger UI) se expone en la ruta `/api/docs` de
     cada backend.
   version: 0.5.0
@@ -68,6 +73,8 @@ tags:
     description: Gestión de tareas (To-Do) del usuario con prioridad, estado y vencimiento.
   - name: Notes
     description: Gestión de notas multimedia del usuario (texto y notas de voz).
+  - name: Schedule
+    description: Cronograma diario estilo Gantt (bloques de tiempo planificados y reales).
 
 paths:
   /api/auth/register:
@@ -1034,6 +1041,147 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/schedule:
+    get:
+      tags:
+        - Schedule
+      operationId: listTimeBlocks
+      summary: Listar los bloques de tiempo del usuario autenticado
+      description: |
+        Devuelve los bloques del usuario autenticado ordenados por `start_time`
+        ascendente. Con `from` y/o `to` solo se devuelven los bloques que se
+        superponen con ese rango (`end_time > from` y `start_time < to`), lo que
+        permite al cliente pedir "su" día en su zona horaria local.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          description: Inicio del rango (ISO 8601).
+          schema:
+            type: string
+            format: date-time
+          example: '2026-10-28T03:00:00.000Z'
+        - name: to
+          in: query
+          required: false
+          description: Fin del rango (ISO 8601, exclusivo).
+          schema:
+            type: string
+            format: date-time
+          example: '2026-10-29T03:00:00.000Z'
+      responses:
+        '200':
+          description: Listado de bloques de tiempo del usuario autenticado.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimeBlock'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Schedule
+      operationId: createTimeBlock
+      summary: Agendar un nuevo bloque de tiempo
+      description: |
+        `start_time` debe ser estrictamente anterior a `end_time` (si no,
+        `400`). Si se envía `task_id`, debe ser una tarea del usuario
+        autenticado (si no, `404`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTimeBlockDTO'
+            examples:
+              bloque:
+                summary: Bloque de trabajo asociado a una tarea
+                value:
+                  title: Pagar la tarjeta de crédito
+                  start_time: '2026-10-28T13:00:00.000Z'
+                  end_time: '2026-10-28T14:30:00.000Z'
+                  category: work
+                  task_id: 1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9
+      responses:
+        '201':
+          description: Bloque de tiempo creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeBlock'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/schedule/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TimeBlockId'
+    patch:
+      tags:
+        - Schedule
+      operationId: updateTimeBlock
+      summary: Actualizar parcialmente un bloque de tiempo
+      description: |
+        Edición parcial: solo se modifican los campos enviados. Debe enviarse
+        al menos un campo. Se valida `start_time < end_time` combinando los
+        valores enviados con los ya guardados. `description` y `task_id` en
+        `null` los eliminan.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTimeBlockDTO'
+            examples:
+              redimensionar:
+                summary: Ajustar el fin del bloque
+                value:
+                  end_time: '2026-10-28T15:00:00.000Z'
+              registrarFoco:
+                summary: Registrar minutos reales de foco
+                value:
+                  actual_duration_minutes: 50
+      responses:
+        '200':
+          description: Bloque de tiempo actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeBlock'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Schedule
+      operationId: deleteTimeBlock
+      summary: Eliminar un bloque de tiempo
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Bloque eliminado correctamente. No retorna contenido.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1082,6 +1230,15 @@ components:
         type: string
         format: uuid
       example: 9f8e7d6c-5b4a-4392-8170-6f5e4d3c2b1a
+    TimeBlockId:
+      name: id
+      in: path
+      required: true
+      description: Identificador único del bloque de tiempo (`time_blocks.id`).
+      schema:
+        type: string
+        format: uuid
+      example: 7c6b5a49-3827-4165-9d4c-3b2a19087f6e
 
   responses:
     BadRequest:
@@ -1663,6 +1820,7 @@ components:
         - priority
         - status
         - due_date
+        - estimated_minutes
         - user_id
         - created_at
         - updated_at
@@ -1692,6 +1850,15 @@ components:
           nullable: true
           description: Fecha de vencimiento opcional. `null` si no se informó.
           example: '2026-10-10T23:59:00.000Z'
+        estimated_minutes:
+          type: integer
+          nullable: true
+          minimum: 5
+          maximum: 1440
+          description: |
+            Duración estimada en minutos (Issue #23). El Cronograma la usa al
+            agendar la tarea. `null` si no se informó.
+          example: 90
         user_id:
           type: string
           format: uuid
@@ -1734,6 +1901,11 @@ components:
           type: string
           format: date-time
           example: '2026-10-10T23:59:00.000Z'
+        estimated_minutes:
+          type: integer
+          minimum: 5
+          maximum: 1440
+          example: 90
 
     UpdateTaskDTO:
       type: object
@@ -1762,6 +1934,12 @@ components:
           format: date-time
           nullable: true
           example: '2026-10-10T23:59:00.000Z'
+        estimated_minutes:
+          type: integer
+          nullable: true
+          minimum: 5
+          maximum: 1440
+          example: 90
 
     Note:
       type: object
@@ -1870,6 +2048,159 @@ components:
           maxLength: 2048
           description: URL o path del archivo subido, para adjuntar a una nota.
           example: /uploads/audio/5f1c2d3e-4a5b-4c6d-8e9f-0a1b2c3d4e5f.webm
+
+    TimeBlockCategory:
+      type: string
+      enum: [work, sleep, leisure, exercise, other]
+      description: Categoría del bloque de tiempo.
+      example: work
+
+    TimeBlock:
+      type: object
+      description: |
+        Bloque de tiempo del cronograma diario (Gantt). Se almacena en la tabla
+        `time_blocks`. `start_time`/`end_time` delimitan el tiempo planificado y
+        `actual_duration_minutes` el tiempo real registrado (p. ej. con Pomodoro).
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - description
+        - start_time
+        - end_time
+        - actual_duration_minutes
+        - category
+        - task_id
+        - is_completed
+        - user_id
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identificador único (`time_blocks.id`).
+          example: 7c6b5a49-3827-4165-9d4c-3b2a19087f6e
+        title:
+          type: string
+          maxLength: 200
+          example: Pagar la tarjeta de crédito
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Detalle opcional. `null` si no se informó.
+          example: Revisar el resumen antes de pagar
+        start_time:
+          type: string
+          format: date-time
+          description: Inicio planificado (ISO 8601). Siempre anterior a `end_time`.
+          example: '2026-10-28T13:00:00.000Z'
+        end_time:
+          type: string
+          format: date-time
+          description: Fin planificado (ISO 8601). Siempre posterior a `start_time`.
+          example: '2026-10-28T14:30:00.000Z'
+        actual_duration_minutes:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Minutos reales registrados en el bloque.
+          example: 50
+        category:
+          $ref: '#/components/schemas/TimeBlockCategory'
+        task_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Tarea asociada (`tasks.id`). `null` si no tiene.
+          example: 1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9
+        is_completed:
+          type: boolean
+          example: false
+        user_id:
+          type: string
+          format: uuid
+          description: Usuario propietario (`time_blocks.user_id`).
+          example: 2f1e0d9c-8b7a-4695-8483-726150493827
+
+    CreateTimeBlockDTO:
+      type: object
+      description: |
+        Payload de alta de un bloque de tiempo. `user_id` se toma del JWT.
+        `start_time` debe ser anterior a `end_time`.
+      additionalProperties: false
+      required:
+        - title
+        - start_time
+        - end_time
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Pagar la tarjeta de crédito
+        description:
+          type: string
+          maxLength: 1000
+          example: Revisar el resumen antes de pagar
+        start_time:
+          type: string
+          format: date-time
+          example: '2026-10-28T13:00:00.000Z'
+        end_time:
+          type: string
+          format: date-time
+          example: '2026-10-28T14:30:00.000Z'
+        actual_duration_minutes:
+          type: integer
+          minimum: 0
+          default: 0
+          example: 0
+        category:
+          allOf:
+            - $ref: '#/components/schemas/TimeBlockCategory'
+          default: other
+        task_id:
+          type: string
+          format: uuid
+          example: 1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9
+        is_completed:
+          type: boolean
+          default: false
+
+    UpdateTimeBlockDTO:
+      type: object
+      description: |
+        Payload de edición parcial (`PATCH`). Todos los campos son opcionales
+        pero debe enviarse al menos uno. `description` y `task_id` en `null`
+        los eliminan.
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        actual_duration_minutes:
+          type: integer
+          minimum: 0
+        category:
+          $ref: '#/components/schemas/TimeBlockCategory'
+        task_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_completed:
+          type: boolean
 
     ErrorResponse:
       type: object

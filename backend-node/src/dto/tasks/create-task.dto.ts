@@ -2,7 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsOptional,
+  Max,
+  Min,
   IsString,
   MaxLength,
   MinLength,
@@ -46,4 +49,11 @@ export class CreateTaskDto {
   @IsDateString({ strict: true })
   @IsNotPastDate()
   due_date?: string;
+
+  @ApiPropertyOptional({ type: Number, minimum: 5, maximum: 1440, example: 90 })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(1440)
+  estimated_minutes?: number;
 }

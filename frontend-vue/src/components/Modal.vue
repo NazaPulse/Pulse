@@ -14,7 +14,7 @@ const emit = defineEmits<{ close: [] }>()
       @click="emit('close')"
     />
     <div
-      class="pulse-card hud-corners relative z-10 max-h-[92vh] w-full animate-rise overflow-y-auto rounded-b-none rounded-t-2xl bg-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6"
+      class="pulse-card hud-corners relative z-10 max-h-[92vh] w-full animate-rise overflow-y-auto overflow-x-hidden rounded-b-none rounded-t-2xl bg-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6"
     >
       <div class="mb-5 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-fg">{{ title }}</h2>

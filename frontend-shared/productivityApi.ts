@@ -1,13 +1,17 @@
-// Cliente de Productividad (Tareas y Notas multimedia) del contrato openapi.yaml.
+// Cliente de Productividad (Tareas, Notas multimedia y Cronograma) del contrato openapi.yaml.
 import type { HttpClient } from './api'
 import type {
   AudioUploadResponse,
   CreateNoteDTO,
   CreateTaskDTO,
+  CreateTimeBlockDTO,
   Note,
+  ScheduleRange,
   Task,
   TaskFilters,
+  TimeBlock,
   UpdateTaskDTO,
+  UpdateTimeBlockDTO,
 } from './types'
 
 const AUDIO_EXTENSIONS: Record<string, string> = {
@@ -47,6 +51,24 @@ function tasksApi(http: HttpClient) {
   }
 }
 
+function scheduleApi(http: HttpClient) {
+  return {
+    async getSchedule(range?: ScheduleRange): Promise<TimeBlock[]> {
+      return (await http.get<TimeBlock[]>('/api/schedule', { params: { ...range } })).data
+    },
+    async createTimeBlock(payload: CreateTimeBlockDTO): Promise<TimeBlock> {
+      return (await http.post<TimeBlock>('/api/schedule', payload)).data
+    },
+    /** Edición parcial (`PATCH`): solo se modifican los campos enviados. */
+    async updateTimeBlock(id: string, payload: UpdateTimeBlockDTO): Promise<TimeBlock> {
+      return (await http.patch<TimeBlock>(`/api/schedule/${id}`, payload)).data
+    },
+    async deleteTimeBlock(id: string): Promise<void> {
+      await http.delete(`/api/schedule/${id}`)
+    },
+  }
+}
+
 function notesApi(http: HttpClient) {
   return {
     async getNotes(): Promise<Note[]> {
@@ -71,5 +93,5 @@ function notesApi(http: HttpClient) {
 }
 
 export function productivityApi(http: HttpClient) {
-  return { ...tasksApi(http), ...notesApi(http) }
+  return { ...tasksApi(http), ...notesApi(http), ...scheduleApi(http) }
 }

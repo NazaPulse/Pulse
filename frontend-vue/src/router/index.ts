@@ -8,6 +8,7 @@ import LoginView from '../pages/LoginView.vue'
 import NotesView from '../pages/NotesView.vue'
 import PomodoroView from '../pages/PomodoroView.vue'
 import RegisterView from '../pages/RegisterView.vue'
+import ScheduleView from '../pages/ScheduleView.vue'
 import TasksView from '../pages/TasksView.vue'
 
 const routes: RouteRecordRaw[] = [
@@ -29,6 +30,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'tasks', name: 'tasks', component: TasksView },
       { path: 'notes', name: 'notes', component: NotesView },
       { path: 'pomodoro', name: 'pomodoro', component: PomodoroView },
+      { path: 'schedule', name: 'schedule', component: ScheduleView },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/login' },

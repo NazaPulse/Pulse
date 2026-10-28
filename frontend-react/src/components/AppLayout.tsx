@@ -70,7 +70,7 @@ export function AppLayout() {
 
       <nav
         aria-label="Secciones"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-canvas/90 backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-canvas/90 backdrop-blur-xl lg:hidden"
       >
         {NAV_ITEMS.map((item) => (
           <NavLink key={item.to} to={item.to} className="tab-link">

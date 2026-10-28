@@ -15,7 +15,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
         onClick={onClose}
         className="absolute inset-0 cursor-default"
       />
-      <div className="pulse-card hud-corners relative z-10 max-h-[92vh] w-full animate-rise overflow-y-auto rounded-b-none rounded-t-2xl bg-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6">
+      <div className="pulse-card hud-corners relative z-10 max-h-[92vh] w-full animate-rise overflow-y-auto overflow-x-hidden rounded-b-none rounded-t-2xl bg-surface p-5 shadow-2xl sm:max-w-md sm:rounded-2xl sm:p-6">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-fg">{title}</h2>
           <button

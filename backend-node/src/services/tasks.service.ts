@@ -30,6 +30,7 @@ function applyNullableFields(task: Task, dto: UpdateTaskDto): void {
   if (dto.due_date !== undefined) {
     task.dueDate = dto.due_date === null ? null : new Date(dto.due_date);
   }
+  if (dto.estimated_minutes !== undefined) task.estimatedMinutes = dto.estimated_minutes;
 }
 
 @Injectable()
@@ -56,6 +57,7 @@ export class TasksService {
       priority: dto.priority ?? TaskPriority.MEDIUM,
       status: dto.status ?? TaskStatus.PENDING,
       dueDate: dto.due_date ? new Date(dto.due_date) : null,
+      estimatedMinutes: dto.estimated_minutes ?? null,
     });
     const saved = await this.tasks.save(entity);
     return TaskResponseDto.fromEntity(saved);

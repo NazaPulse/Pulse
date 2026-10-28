@@ -7,6 +7,7 @@ export const NAV_ITEMS: { to: string; label: string; icon: IconName }[] = [
   { to: '/tasks', label: 'Tareas', icon: 'tasks' },
   { to: '/notes', label: 'Notas', icon: 'notes' },
   { to: '/pomodoro', label: 'Pomodoro', icon: 'timer' },
+  { to: '/schedule', label: 'Cronograma', icon: 'gantt' },
 ]
 
 export const AUTH_FEATURES: { icon: IconName; title: string; text: string }[] = [

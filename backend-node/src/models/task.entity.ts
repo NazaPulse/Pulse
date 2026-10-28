@@ -32,4 +32,7 @@ export class Task extends OwnedEntity {
 
   @Column({ name: 'due_date', type: 'timestamptz', nullable: true })
   dueDate!: Date | null;
+
+  @Column({ name: 'estimated_minutes', type: 'integer', nullable: true })
+  estimatedMinutes!: number | null;
 }

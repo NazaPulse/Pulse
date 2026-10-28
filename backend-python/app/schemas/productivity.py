@@ -116,6 +116,28 @@ def _due_date(v: Any) -> dt.datetime | None:
     return parsed
 
 
+ESTIMATED_MINUTES_MIN = 5
+ESTIMATED_MINUTES_MAX = 1440
+
+
+def _estimated_minutes(v: Any) -> int | None:
+    """`@IsInt()` + `@Min(5)` + `@Max(1440)`: reporta todos los que fallan, en el
+    orden de `class-validator` (Max, Min, IsInt)."""
+    if v is None:
+        return None
+    is_number = isinstance(v, (int, float)) and not isinstance(v, bool)
+    messages = []
+    if not is_number or v > ESTIMATED_MINUTES_MAX:
+        messages.append(f"estimated_minutes must not be greater than {ESTIMATED_MINUTES_MAX}")
+    if not is_number or v < ESTIMATED_MINUTES_MIN:
+        messages.append(f"estimated_minutes must not be less than {ESTIMATED_MINUTES_MIN}")
+    if not (is_number and float(v).is_integer()):
+        messages.append("estimated_minutes must be an integer number")
+    if messages:
+        raise PydanticCustomError("estimated_minutes", messages[0], {"messages": messages})
+    return int(v)
+
+
 def _note_content(v: Any) -> str | None:
     if v is None:
         return None
@@ -150,12 +172,14 @@ class TaskCreateRequest(BaseModel):
     priority: Any = None
     status: Any = None
     due_date: Any = None
+    estimated_minutes: Any = None
 
     _v_title = field_validator("title")(lambda cls, v: _title(v))
     _v_description = field_validator("description")(lambda cls, v: _task_description(v))
     _v_priority = field_validator("priority")(lambda cls, v: _priority(v))
     _v_status = field_validator("status")(lambda cls, v: _status(v))
     _v_due_date = field_validator("due_date")(lambda cls, v: _due_date(v))
+    _v_estimated = field_validator("estimated_minutes")(lambda cls, v: _estimated_minutes(v))
 
 
 class TaskUpdateRequest(BaseModel):
@@ -172,6 +196,7 @@ class TaskUpdateRequest(BaseModel):
     priority: Any = None
     status: Any = None
     due_date: Any = None
+    estimated_minutes: Any = None
 
     @field_validator("title")
     @classmethod
@@ -182,6 +207,7 @@ class TaskUpdateRequest(BaseModel):
     _v_priority = field_validator("priority")(lambda cls, v: _priority(v))
     _v_status = field_validator("status")(lambda cls, v: _status(v))
     _v_due_date = field_validator("due_date")(lambda cls, v: _due_date(v))
+    _v_estimated = field_validator("estimated_minutes")(lambda cls, v: _estimated_minutes(v))
 
 
 class Task(BaseModel):
@@ -195,6 +221,7 @@ class Task(BaseModel):
     priority: TaskPriority
     status: TaskStatus
     due_date: str | None
+    estimated_minutes: int | None
     user_id: str
     created_at: str
     updated_at: str

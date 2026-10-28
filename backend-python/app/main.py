@@ -12,6 +12,7 @@ from app.api.auth import router as auth_router
 from app.api.categories import router as categories_router
 from app.api.finances import router as finances_router
 from app.api.notes import router as notes_router
+from app.api.schedule import router as schedule_router
 from app.api.tasks import router as tasks_router
 from app.api.transactions import router as transactions_router
 from app.errors import register_exception_handlers
@@ -34,6 +35,7 @@ app.include_router(transactions_router)
 app.include_router(finances_router)
 app.include_router(tasks_router)
 app.include_router(notes_router)
+app.include_router(schedule_router)
 
 # Archivos subidos (notas de voz) servidos públicamente en /uploads/*.
 UPLOADS_ROOT.mkdir(parents=True, exist_ok=True)
