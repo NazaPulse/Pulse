@@ -142,9 +142,29 @@ export interface TaskFormValues {
   priority: TaskPriority
   /** Valor de `<input type="datetime-local">`; vacío si no hay vencimiento. */
   dueDate: string
+  /** Duración estimada en minutos (texto del `<input type="number">`); vacía si no se estima. */
+  estimatedMinutes: string
 }
 
-export const EMPTY_TASK_VALUES: TaskFormValues = { title: '', description: '', priority: 'medium', dueDate: '' }
+export const EMPTY_TASK_VALUES: TaskFormValues = {
+  title: '',
+  description: '',
+  priority: 'medium',
+  dueDate: '',
+  estimatedMinutes: '',
+}
+
+export const ESTIMATED_MINUTES_MIN = 5
+export const ESTIMATED_MINUTES_MAX = 1440
+export const ESTIMATED_MINUTES_MESSAGE = `La duración estimada va de ${ESTIMATED_MINUTES_MIN} a ${ESTIMATED_MINUTES_MAX} minutos.`
+
+/** Vacía es válida (sin estimación); si no, entero entre 5 y 1440. */
+export function isValidEstimate(value: string): boolean {
+  const trimmed = value.trim()
+  if (trimmed === '') return true
+  const minutes = Number(trimmed)
+  return /^\d+$/.test(trimmed) && minutes >= ESTIMATED_MINUTES_MIN && minutes <= ESTIMATED_MINUTES_MAX
+}
 
 /** Fecha/hora local actual en formato `YYYY-MM-DDTHH:mm`. */
 export function nowLocalInput(now = new Date()): string {
@@ -162,7 +182,8 @@ export function canSubmitTask(values: TaskFormValues): boolean {
     title.length > 0 &&
     title.length <= TASK_TITLE_MAX_LENGTH &&
     values.description.length <= TASK_DESCRIPTION_MAX_LENGTH &&
-    !isPastDate(values.dueDate)
+    !isPastDate(values.dueDate) &&
+    isValidEstimate(values.estimatedMinutes)
   )
 }
 
@@ -171,5 +192,6 @@ export function buildTaskPayload(values: TaskFormValues): CreateTaskDTO {
   const description = values.description.trim()
   if (description) payload.description = description
   if (values.dueDate) payload.due_date = new Date(values.dueDate).toISOString()
+  if (values.estimatedMinutes.trim()) payload.estimated_minutes = Number(values.estimatedMinutes.trim())
   return payload
 }

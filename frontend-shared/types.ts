@@ -136,6 +136,8 @@ export interface Task {
   priority: TaskPriority
   status: TaskStatus
   due_date: string | null
+  /** Duración estimada (5–1440 min); el Cronograma la usa al agendar. */
+  estimated_minutes: number | null
   user_id: string
   created_at: string
   updated_at: string
@@ -149,6 +151,7 @@ export interface CreateTaskDTO {
   status?: TaskStatus
   /** ISO 8601; no puede ser una fecha pasada. */
   due_date?: string
+  estimated_minutes?: number
 }
 
 /** Cuerpo de `PATCH /api/tasks/{id}` (`UpdateTaskDTO`): al menos un campo. */
@@ -158,11 +161,60 @@ export interface UpdateTaskDTO {
   priority?: TaskPriority
   status?: TaskStatus
   due_date?: string | null
+  estimated_minutes?: number | null
 }
 
 export interface TaskFilters {
   status?: TaskStatus
   priority?: TaskPriority
+}
+
+// ── Productividad: Cronograma diario (Gantt) ────────────────
+
+export type TimeBlockCategory = 'work' | 'sleep' | 'leisure' | 'exercise' | 'other'
+
+export interface TimeBlock {
+  id: string
+  title: string
+  description: string | null
+  /** ISO 8601; siempre anterior a `end_time`. */
+  start_time: string
+  end_time: string
+  actual_duration_minutes: number
+  category: TimeBlockCategory
+  task_id: string | null
+  is_completed: boolean
+  user_id: string
+}
+
+/** Cuerpo de `POST /api/schedule` (`CreateTimeBlockDTO`). */
+export interface CreateTimeBlockDTO {
+  title: string
+  description?: string
+  start_time: string
+  end_time: string
+  actual_duration_minutes?: number
+  category?: TimeBlockCategory
+  task_id?: string
+  is_completed?: boolean
+}
+
+/** Cuerpo de `PATCH /api/schedule/{id}` (`UpdateTimeBlockDTO`): al menos un campo. */
+export interface UpdateTimeBlockDTO {
+  title?: string
+  description?: string | null
+  start_time?: string
+  end_time?: string
+  actual_duration_minutes?: number
+  category?: TimeBlockCategory
+  task_id?: string | null
+  is_completed?: boolean
+}
+
+/** Query params de `GET /api/schedule`: bloques que se superponen con `[from, to)`. */
+export interface ScheduleRange {
+  from?: string
+  to?: string
 }
 
 // ── Productividad: Notas multimedia ─────────────────────────

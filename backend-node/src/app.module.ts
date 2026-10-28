@@ -9,8 +9,10 @@ import { Category } from './models/category.entity';
 import { FinancesModule } from './modules/finances.module';
 import { Note } from './models/note.entity';
 import { NotesModule } from './modules/notes.module';
+import { ScheduleModule } from './modules/schedule.module';
 import { Task } from './models/task.entity';
 import { TasksModule } from './modules/tasks.module';
+import { TimeBlock } from './models/time-block.entity';
 import { Transaction } from './models/transaction.entity';
 import { TransactionsModule } from './modules/transactions.module';
 import { User } from './models/user.entity';
@@ -31,7 +33,7 @@ import { UsersModule } from './modules/users.module';
         username: config.get<string>('DB_USER', 'pulse'),
         password: config.getOrThrow<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME', 'pulse'),
-        entities: [User, Account, Category, Transaction, Task, Note],
+        entities: [User, Account, Category, Transaction, Task, Note, TimeBlock],
         // El esquema es propiedad de init.sql (única fuente de verdad).
         // El backend NO sincroniza ni migra la base.
         synchronize: false,
@@ -46,6 +48,7 @@ import { UsersModule } from './modules/users.module';
     FinancesModule,
     TasksModule,
     NotesModule,
+    ScheduleModule,
   ],
 })
 export class AppModule {}

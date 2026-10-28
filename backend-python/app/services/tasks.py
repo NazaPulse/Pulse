@@ -24,7 +24,7 @@ from app.services.accounts import NOT_FOUND_MESSAGE, _iso_z
 
 EMPTY_UPDATE_MESSAGE = "Debe enviarse al menos un campo para actualizar."
 _REQUIRED_FIELDS = ("title", "priority", "status")
-_NULLABLE_FIELDS = ("description", "due_date")
+_NULLABLE_FIELDS = ("description", "due_date", "estimated_minutes")
 
 
 def _to_response(task: Task) -> TaskSchema:
@@ -35,6 +35,7 @@ def _to_response(task: Task) -> TaskSchema:
         priority=TaskPriority(task.priority),
         status=TaskStatus(task.status),
         due_date=_iso_z(task.due_date) if task.due_date else None,
+        estimated_minutes=task.estimated_minutes,
         user_id=str(task.user_id),
         created_at=_iso_z(task.created_at),
         updated_at=_iso_z(task.updated_at),
@@ -79,6 +80,7 @@ def create(db: Session, user_id: uuid.UUID, dto: TaskCreateRequest) -> TaskSchem
         priority=(dto.priority or TaskPriority.MEDIUM).value,
         status=(dto.status or TaskStatus.PENDING).value,
         due_date=dto.due_date,
+        estimated_minutes=dto.estimated_minutes,
     )
     db.add(task)
     db.commit()

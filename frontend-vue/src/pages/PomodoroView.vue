@@ -2,6 +2,7 @@
 import { MODE_STYLES, WORK_SESSIONS_PER_LONG_BREAK, completedSessionsLabel } from '@shared/pomodoro'
 
 import Alert from '../components/Alert.vue'
+import FocusBanner from '../components/Pomodoro/FocusBanner.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PomodoroControls from '../components/Pomodoro/PomodoroControls.vue'
 import PomodoroModeTabs from '../components/Pomodoro/PomodoroModeTabs.vue'
@@ -10,7 +11,7 @@ import { usePomodoroSession } from '../composables/usePomodoroSession'
 
 const SUBTITLE = `Bloques de 25 minutos de concentración con descansos cortos y, cada ${WORK_SESSIONS_PER_LONG_BREAK} bloques, uno largo.`
 
-const { timer, clock, message, start, selectMode, reset } = usePomodoroSession()
+const { timer, clock, message, focus, start, selectMode, reset } = usePomodoroSession()
 </script>
 
 <template>
@@ -18,6 +19,8 @@ const { timer, clock, message, start, selectMode, reset } = usePomodoroSession()
     <PageHeader eyebrow="04 · Foco" title="Pomodoro" :subtitle="SUBTITLE" />
 
     <div class="mx-auto mt-8 flex max-w-md flex-col gap-6 pulse-card p-5 sm:p-8">
+      <FocusBanner v-if="focus.target.value" :target="focus.target.value" @clear="focus.clear" />
+
       <PomodoroModeTabs :mode="timer.mode.value" @select="selectMode" />
 
       <Alert v-if="message" variant="success">{{ message }}</Alert>

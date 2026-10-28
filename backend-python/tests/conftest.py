@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 import app.api.accounts as accounts_api
 import app.api.categories as categories_api
 import app.api.notes as notes_api
+import app.api.schedule as schedule_api
 import app.api.tasks as tasks_api
 from app import services
 from app.core.security import create_access_token
@@ -32,6 +33,8 @@ from app.schemas.finance import Category as CategorySchema
 from app.services import auth as auth_module
 from app.services import notes as notes_module
 from app.services.notes import _to_response as note_to_response
+from app.services.schedule import assert_valid_range
+from app.services.schedule import to_response as time_block_to_response
 from app.services.tasks import EMPTY_UPDATE_MESSAGE
 from app.services.tasks import _to_response as task_to_response
 
@@ -216,6 +219,7 @@ class FakeTasksService(FakeStore):
             priority=(dto.priority.value if dto.priority else "medium"),
             status=(dto.status.value if dto.status else "pending"),
             due_date=dto.due_date,
+            estimated_minutes=dto.estimated_minutes,
         )
         return self._schema(row)
 
@@ -230,6 +234,65 @@ class FakeTasksService(FakeStore):
                 continue
             setattr(row, field, value.value if hasattr(value, "value") else value)
         return self._schema(self._touch(row))
+
+
+class FakeScheduleService(FakeStore):
+    """Réplica en memoria del cronograma: orden por `start_time`, rango válido
+    y `task_id` que debe pertenecer al usuario (según `FakeTasksService`)."""
+
+    def __init__(self, tasks: FakeTasksService) -> None:
+        super().__init__()
+        self._tasks = tasks
+
+    def _schema(self, row):
+        return time_block_to_response(row)
+
+    def _assert_owned_task(self, user_id, task_id) -> None:
+        if task_id:
+            self._tasks._find_owned_or_fail(user_id, task_id)
+
+    def list_for_user(self, db, user_id, rng):
+        rows = sorted(self._list(user_id), key=lambda r: r.start_time)
+        if rng.start is not None:
+            rows = [r for r in rows if r.end_time > rng.start]
+        if rng.end is not None:
+            rows = [r for r in rows if r.start_time < rng.end]
+        return [self._schema(r) for r in rows]
+
+    def create(self, db, user_id, dto):
+        assert_valid_range(dto.start_time, dto.end_time)
+        self._assert_owned_task(user_id, dto.task_id)
+        row = self._insert(
+            user_id,
+            title=dto.title,
+            description=dto.description,
+            start_time=dto.start_time,
+            end_time=dto.end_time,
+            actual_duration_minutes=dto.actual_duration_minutes or 0,
+            category=(dto.category.value if dto.category else "other"),
+            task_id=uuid.UUID(dto.task_id) if dto.task_id else None,
+            is_completed=bool(dto.is_completed),
+        )
+        return self._schema(row)
+
+    def update(self, db, user_id, row_id, dto):
+        sent = dto.model_fields_set
+        if not sent:
+            raise HTTPException(status_code=400, detail=EMPTY_UPDATE_MESSAGE)
+        row = self._find_owned_or_fail(user_id, row_id)
+        fields = {}
+        for field in sent:
+            value = getattr(dto, field)
+            if value is None and field not in {"description", "task_id"}:
+                continue
+            if field == "task_id":
+                value = uuid.UUID(value) if value else None
+            fields[field] = value.value if hasattr(value, "value") else value
+        assert_valid_range(
+            fields.get("start_time", row.start_time), fields.get("end_time", row.end_time)
+        )
+        self._assert_owned_task(user_id, dto.task_id)
+        return self._schema(self._touch(row, **fields))
 
 
 class FakeNotesService(FakeStore):
@@ -279,7 +342,14 @@ def fake_notes(monkeypatch, tmp_path) -> FakeNotesService:
 
 
 @pytest.fixture
-def client(fake_users, fake_accounts, fake_categories, fake_tasks, fake_notes) -> TestClient:
+def fake_schedule(monkeypatch, fake_tasks) -> FakeScheduleService:
+    return _install(monkeypatch, schedule_api, "schedule_service", FakeScheduleService(fake_tasks))
+
+
+@pytest.fixture
+def client(
+    fake_users, fake_accounts, fake_categories, fake_tasks, fake_notes, fake_schedule
+) -> TestClient:
     app.dependency_overrides[get_db] = lambda: iter([None])
     with TestClient(app) as c:
         yield c

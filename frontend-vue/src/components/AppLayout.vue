@@ -73,7 +73,7 @@ function handleLogout() {
 
     <nav
       aria-label="Secciones"
-      class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-canvas/90 backdrop-blur-xl lg:hidden"
+      class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-canvas/90 backdrop-blur-xl lg:hidden"
     >
       <RouterLink v-for="item in NAV_ITEMS" :key="item.to" :to="item.to" class="tab-link">
         <Icon :name="item.icon" svg-class="h-6 w-6" />

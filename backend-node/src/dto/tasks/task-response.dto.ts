@@ -23,6 +23,9 @@ export class TaskResponseDto {
   @ApiProperty({ type: String, format: 'date-time', nullable: true, example: '2026-10-10T23:59:00.000Z' })
   due_date!: string | null;
 
+  @ApiProperty({ type: Number, nullable: true, minimum: 5, maximum: 1440, example: 90 })
+  estimated_minutes!: number | null;
+
   @ApiProperty({ format: 'uuid', example: '2f1e0d9c-8b7a-4695-8483-726150493827' })
   user_id!: string;
 
@@ -40,6 +43,7 @@ export class TaskResponseDto {
     dto.priority = task.priority;
     dto.status = task.status;
     dto.due_date = task.dueDate ? task.dueDate.toISOString() : null;
+    dto.estimated_minutes = task.estimatedMinutes ?? null;
     dto.user_id = task.userId;
     dto.created_at = task.createdAt.toISOString();
     dto.updated_at = task.updatedAt.toISOString();

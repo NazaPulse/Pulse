@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import {
   DUE_DATE_PAST_MESSAGE,
+  ESTIMATED_MINUTES_MESSAGE,
+  ESTIMATED_MINUTES_MIN,
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_TITLE_MAX_LENGTH,
+  isValidEstimate,
   nowLocalInput,
 } from '@shared/tasks'
 import { useTaskForm } from '../../composables/useTaskForm'
@@ -64,6 +67,20 @@ const minDueDate = nowLocalInput()
         :disabled="submitting"
         :error="form.dueDateInPast.value ? DUE_DATE_PAST_MESSAGE : undefined"
         @update:model-value="form.setDueDate"
+      />
+
+      <Field
+        v-model="values.estimatedMinutes"
+        label="Duración estimada en minutos (opcional)"
+        type="number"
+        name="estimated_minutes"
+        inputmode="numeric"
+        :min="String(ESTIMATED_MINUTES_MIN)"
+        step="5"
+        placeholder="60"
+        :disabled="submitting"
+        hint="El Cronograma la usa al agendar la tarea."
+        :error="isValidEstimate(values.estimatedMinutes) ? undefined : ESTIMATED_MINUTES_MESSAGE"
       />
 
       <SubmitButton :loading="submitting" :disabled="!form.canSubmit.value" loading-label="Guardando…">

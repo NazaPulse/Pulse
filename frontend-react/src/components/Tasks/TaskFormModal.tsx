@@ -1,7 +1,11 @@
 import {
   DUE_DATE_PAST_MESSAGE,
+  ESTIMATED_MINUTES_MAX,
+  ESTIMATED_MINUTES_MESSAGE,
+  ESTIMATED_MINUTES_MIN,
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_TITLE_MAX_LENGTH,
+  isValidEstimate,
   nowLocalInput,
 } from '@shared/tasks'
 import { useTaskForm } from '../../hooks/useTaskForm'
@@ -66,6 +70,22 @@ export function TaskFormModal({ onClose, onSubmit }: TaskFormModalProps) {
           onChange={(e) => form.setDueDate(e.target.value)}
           disabled={submitting}
           error={form.dueDateInPast ? DUE_DATE_PAST_MESSAGE : undefined}
+        />
+
+        <Field
+          label="Duración estimada en minutos (opcional)"
+          type="number"
+          name="estimated_minutes"
+          inputMode="numeric"
+          min={ESTIMATED_MINUTES_MIN}
+          max={ESTIMATED_MINUTES_MAX}
+          step={5}
+          placeholder="60"
+          value={values.estimatedMinutes}
+          onChange={(e) => setField('estimatedMinutes', e.target.value)}
+          disabled={submitting}
+          hint="El Cronograma la usa al agendar la tarea."
+          error={isValidEstimate(values.estimatedMinutes) ? undefined : ESTIMATED_MINUTES_MESSAGE}
         />
 
         <SubmitButton loading={submitting} disabled={!form.canSubmit} loadingLabel="Guardando…">

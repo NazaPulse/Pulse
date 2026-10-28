@@ -57,6 +57,9 @@ _MISSING_EXPANSION: dict[tuple[str, str], list[str]] = {
     ("/api/tasks", "title"): _TITLE_MESSAGES,
     ("/api/notes", "title"): _TITLE_MESSAGES,
     ("/api/notes/{id}", "title"): _TITLE_MESSAGES,
+    ("/api/schedule", "title"): _TITLE_MESSAGES,
+    ("/api/schedule", "start_time"): ["start_time must be a valid ISO 8601 date string"],
+    ("/api/schedule", "end_time"): ["end_time must be a valid ISO 8601 date string"],
 }
 
 # Errores de tipo en los que `class-validator` también reporta el resto de los
@@ -79,6 +82,11 @@ _TYPE_ERROR_EXPANSION: dict[str, list[str]] = {
     "audio_url_string": [
         "audio_url must be shorter than or equal to 2048 characters",
         "audio_url must be a string",
+    ],
+    # Cronograma (app/schemas/schedule.py)
+    "minutes_invalid": [
+        "actual_duration_minutes must not be less than 0",
+        "actual_duration_minutes must be an integer number",
     ],
     "due_date_invalid": [
         "due_date must be a date equal to or later than the current date",
@@ -180,6 +188,10 @@ def _constraint_rank(field: str, err: dict) -> int:
 
 
 def _error_messages(field: str, err: dict) -> list[str]:
+    # Validadores que ya calculan todos los mensajes de class-validator (p. ej. estimated_minutes).
+    computed = (err.get("ctx") or {}).get("messages")
+    if computed:
+        return list(computed)
     expansion = _TYPE_ERROR_EXPANSION.get(err.get("type", ""))
     if expansion:
         return expansion

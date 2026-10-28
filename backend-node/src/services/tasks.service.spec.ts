@@ -30,6 +30,7 @@ describe('TasksService', () => {
       priority: TaskPriority.HIGH,
       status: TaskStatus.PENDING,
       dueDate: new Date('2030-10-10T23:59:00.000Z'),
+      estimatedMinutes: 90,
       createdAt: new Date('2026-10-07T12:00:00.000Z'),
       updatedAt: new Date('2026-10-07T12:00:00.000Z'),
       ...over,
@@ -69,6 +70,7 @@ describe('TasksService', () => {
       priority: 'high',
       status: 'pending',
       due_date: '2030-10-10T23:59:00.000Z',
+      estimated_minutes: 90,
       user_id: OWNER_ID,
       created_at: '2026-10-07T12:00:00.000Z',
       updated_at: '2026-10-07T12:00:00.000Z',
@@ -85,6 +87,7 @@ describe('TasksService', () => {
       priority: TaskPriority.MEDIUM,
       status: TaskStatus.PENDING,
       dueDate: null,
+      estimatedMinutes: null,
     });
   });
 
@@ -101,6 +104,15 @@ describe('TasksService', () => {
         priority: TaskPriority.HIGH,
       }),
     );
+  });
+
+  it('update aplica y borra estimated_minutes (Issue #23)', async () => {
+    repo.findOne.mockResolvedValue(buildTask());
+    await service.update(OWNER_ID, TASK_ID, { estimated_minutes: 45 });
+    expect(repo.save).toHaveBeenLastCalledWith(expect.objectContaining({ estimatedMinutes: 45 }));
+
+    await service.update(OWNER_ID, TASK_ID, { estimated_minutes: null });
+    expect(repo.save).toHaveBeenLastCalledWith(expect.objectContaining({ estimatedMinutes: null }));
   });
 
   it('update ignora null en title/priority/status (columnas NOT NULL)', async () => {

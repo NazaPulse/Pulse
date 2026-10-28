@@ -1,6 +1,7 @@
 import { WORK_SESSIONS_PER_LONG_BREAK, MODE_STYLES, completedSessionsLabel } from '@shared/pomodoro'
 
 import { Alert } from '../components/Alert'
+import { FocusBanner } from '../components/Pomodoro/FocusBanner'
 import { PageHeader } from '../components/PageHeader'
 import { PomodoroControls, PomodoroModeTabs } from '../components/Pomodoro/PomodoroControls'
 import { ProgressRing } from '../components/Pomodoro/ProgressRing'
@@ -9,7 +10,7 @@ import { usePomodoroSession } from '../components/Pomodoro/usePomodoroSession'
 const SUBTITLE = `Bloques de 25 minutos de concentración con descansos cortos y, cada ${WORK_SESSIONS_PER_LONG_BREAK} bloques, uno largo.`
 
 export function PomodoroPage() {
-  const { timer, clock, message, start, selectMode, reset } = usePomodoroSession()
+  const { timer, clock, message, focus, start, selectMode, reset } = usePomodoroSession()
   const sessionInCycle = timer.completedWorkSessions % WORK_SESSIONS_PER_LONG_BREAK
 
   return (
@@ -17,6 +18,8 @@ export function PomodoroPage() {
       <PageHeader eyebrow="04 · Foco" title="Pomodoro" subtitle={SUBTITLE} />
 
       <div className="mx-auto mt-8 flex max-w-md flex-col gap-6 pulse-card p-5 sm:p-8">
+        {focus.target ? <FocusBanner target={focus.target} onClear={focus.clear} /> : null}
+
         <PomodoroModeTabs mode={timer.mode} onSelect={selectMode} />
 
         {message ? <Alert variant="success">{message}</Alert> : null}

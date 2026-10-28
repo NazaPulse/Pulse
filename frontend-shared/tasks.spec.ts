@@ -25,6 +25,7 @@ const task = (over: Partial<Task>): Task => ({
   priority: 'medium',
   status: 'pending',
   due_date: null,
+  estimated_minutes: null,
   user_id: 'u',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -118,8 +119,26 @@ describe('formulario', () => {
       title: 'Pagar',
       priority: 'high',
     })
-    const full = buildTaskPayload({ title: 'A', description: ' d ', priority: 'low', dueDate: '2099-05-05T10:30' })
-    expect(full).toMatchObject({ description: 'd', due_date: new Date('2099-05-05T10:30').toISOString() })
+    const full = buildTaskPayload({
+      title: 'A',
+      description: ' d ',
+      priority: 'low',
+      dueDate: '2099-05-05T10:30',
+      estimatedMinutes: ' 90 ',
+    })
+    expect(full).toMatchObject({
+      description: 'd',
+      due_date: new Date('2099-05-05T10:30').toISOString(),
+      estimated_minutes: 90,
+    })
+  })
+
+  it('valida la duración estimada (vacía o de 5 a 1440 min)', () => {
+    const base = { ...EMPTY_TASK_VALUES, title: 'Ok' }
+    expect(canSubmitTask({ ...base, estimatedMinutes: '45' })).toBe(true)
+    expect(canSubmitTask({ ...base, estimatedMinutes: '3' })).toBe(false)
+    expect(canSubmitTask({ ...base, estimatedMinutes: '1.5' })).toBe(false)
+    expect(canSubmitTask({ ...base, estimatedMinutes: '2000' })).toBe(false)
   })
 
   it('isPastDate y nowLocalInput', () => {

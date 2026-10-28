@@ -81,6 +81,10 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 
+-- Issue #23: duración estimada de la tarea (la usa el Cronograma al agendarla).
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS estimated_minutes INTEGER
+    CHECK (estimated_minutes BETWEEN 5 AND 1440);
+
 -- Módulo 2 (Issue #18/#19): Notas multimedia (texto y/o audio)
 CREATE TABLE IF NOT EXISTS notes (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -94,3 +98,24 @@ CREATE TABLE IF NOT EXISTS notes (
 
 CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
 -- Verificación de Issue #1 completada
+
+-- Issue #23: Cronograma diario (Gantt). `start_time`/`end_time` son el tiempo
+-- planificado; `actual_duration_minutes`, el tiempo real registrado.
+CREATE TABLE IF NOT EXISTS time_blocks (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id                  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    task_id                  UUID REFERENCES tasks(id) ON DELETE SET NULL,
+    title                    VARCHAR(200) NOT NULL,
+    description              VARCHAR(1000),
+    start_time               TIMESTAMPTZ NOT NULL,
+    end_time                 TIMESTAMPTZ NOT NULL,
+    actual_duration_minutes  INTEGER NOT NULL DEFAULT 0 CHECK (actual_duration_minutes >= 0),
+    category                 VARCHAR(20) NOT NULL DEFAULT 'other'
+                             CHECK (category IN ('work', 'sleep', 'leisure', 'exercise', 'other')),
+    is_completed             BOOLEAN NOT NULL DEFAULT false,
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (start_time < end_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_time_blocks_user_id_start ON time_blocks(user_id, start_time);
