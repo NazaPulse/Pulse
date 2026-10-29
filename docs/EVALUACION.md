@@ -3,20 +3,20 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación III (RepoSense + análisis de calidad + constancia). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-10-28.
+> Generado: 2026-10-29.
 
 ## 1. Veredicto
 
 | Aspecto | Resultado |
 |---|---|
 | Tipo de proyecto | frontend |
-| Índice de calidad de servicios | **7/100** (mínimo 60) |
-| Criterios cumplidos | **11/15** |
+| Índice de calidad de servicios | **4/100** (mínimo 60) |
+| Criterios cumplidos | **12/15** |
 | Aprobado (semáforo) | **NO** |
-| Código (LOC) | 15,616 |
-| Archivos de código | 317 |
-| Tests (archivos) | 32 |
-| Cobertura de líneas | 44.1% (mínimo 80%) |
+| Código (LOC) | 20,617 |
+| Archivos de código | 358 |
+| Tests (archivos) | 35 |
+| Cobertura de líneas | 82.1% (mínimo 80%) |
 | Capas detectadas | vistas, servicios, estado |
 
 > **Aprobado** exige cumplir **todos** los criterios del semáforo. No es una nota: sirve para ordenar y priorizar la revisión.
@@ -25,7 +25,7 @@
 
 | Autor | Commits | Código (LOC) | Tests (LOC) | Docs (LOC) | Días activos | % del código |
 |---|---:|---:|---:|---:|---:|---:|
-| Nazareno Cruz Moreno | 29 | 15,277 | 3,556 | 432 | 14 | 100% |
+| Nazareno Cruz Moreno | 30 | 20,215 | 4,299 | 432 | 15 | 100% |
 
 > _El LOC de autoría lo calcula RepoSense sobre el historial y puede diferir del LOC de código del análisis de calidad (que mira solo el estado de `main`)._
 
@@ -35,7 +35,7 @@
 
 | Alumno | Sesiones | Cumplimiento | Pausa | Recencia | IC | Nivel | Para subir de nivel |
 |---|--:|--:|--:|--:|--:|--|--|
-| Nazareno Cruz Moreno | 11 | 51% | 14 d | 57% | **41** | No aprueba | Pausa 14 d (máx. 10 d) |
+| Nazareno Cruz Moreno | 12 | 55% | 14 d | 93% | **48** | No aprueba | Pausa 14 d (máx. 10 d) |
 
 > Para aprobar el IC: **2 sesiones por semana** sostenidas, sin pausas mayores a **10 días** y con actividad en las **últimas 2 semanas**. Se excluyen merges, bots y al docente. Zona horaria UTC-3.
 
@@ -47,7 +47,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Un resumen numérico (0-100) que combina todas las señales y métricas del análisis, con topes duros por duplicación.
 - **Por qué importa:** Ordena y prioriza la revisión: un índice bajo indica varias señales que conviene mirar juntas.
-- **Tu resultado:** índice **7/100** _(mínimo 60)_
+- **Tu resultado:** índice **4/100** _(mínimo 60)_
 - **Para investigar la causa:**
     - ¿En qué momento del proyecto se concentraron los problemas (arranque, integración de partes, cierre)?
     - ¿El índice bajó por muchas señales chicas o por una o dos graves?
@@ -57,7 +57,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Porcentaje de bloques de código repetidos (similitud) en el repositorio.
 - **Por qué importa:** Cada copia se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **4.4%** de duplicación _(máximo 15%)_
+- **Tu resultado:** **5.4%** de duplicación _(máximo 15%)_
 
 ### 3. Secretos hardcodeados (SEC) — OK
 
@@ -95,17 +95,21 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 - **Por qué importa:** Se pierde la ayuda del compilador justo donde los datos vienen de afuera (API, formularios).
 - **Tu resultado:** **0** uso(s) de `any` _(máximo 2)_
 
-### 9. Componente demasiado grande (BigC) — OK
+### 9. Componente demasiado grande (BigC) — A REVISAR
 
 - **Qué mide:** Componentes de UI muy extensos, que suelen mezclar render, estado y lógica.
 - **Por qué importa:** Son difíciles de leer, probar y reutilizar, y sus cambios tienen efectos inesperados.
-- **Tu resultado:** **0** componente(s) demasiado grande(s) _(máximo 1)_
+- **Tu resultado:** **4** componente(s) demasiado grande(s) _(máximo 1)_
+- **Para investigar la causa:**
+    - ¿El componente creció a medida que se agregaban requisitos, sin volver a dividirlo?
+    - ¿Mezcla responsabilidades distintas (mostrar, calcular, pedir datos)?
+    - ¿Se dividió por pantalla o por unidad de responsabilidad?
 
 ### 10. Baja cohesión (Coh) — A REVISAR
 
 - **Qué mide:** Una clase o unidad cuyos métodos y campos no están relacionados entre sí.
 - **Por qué importa:** Una unidad que cambia por motivos distintos es frágil y cuesta entenderla.
-- **Tu resultado:** **2** unidad(es) con baja cohesión _(máximo 0)_
+- **Tu resultado:** **3** unidad(es) con baja cohesión _(máximo 0)_
 - **Para investigar la causa:**
     - ¿La unidad agrupa cosas que en realidad pertenecen a lugares distintos?
     - ¿Cambia por motivos diferentes según la tarea?
@@ -115,39 +119,31 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Complejidad ciclomática: cantidad de caminos posibles dentro de una función (condicionales, bucles, casos).
 - **Por qué importa:** Muchos caminos = difícil de seguir y de probar; suelen esconderse casos sin cubrir.
-- **Tu resultado:** **21** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 15616 LOC))_
+- **Tu resultado:** **58** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 20617 LOC))_
 
 ### 12. Funciones/métodos largos o con muchos parámetros (Tam) — OK
 
 - **Qué mide:** Tamaño de las funciones/métodos y cantidad de parámetros.
 - **Por qué importa:** Una función que hace varias cosas cuesta leerla, nombrarla y reutilizarla.
-- **Tu resultado:** **42** función/método(s) largos o con muchos parámetros _(máximo 10 por 1000 LOC)_
+- **Tu resultado:** **72** función/método(s) largos o con muchos parámetros _(máximo 10 por 1000 LOC)_
 
-### 13. Acoplamiento alto (Acop) — A REVISAR
+### 13. Acoplamiento alto (Acop) — OK
 
 - **Qué mide:** Cuánto depende una unidad de las partes internas de otra.
 - **Por qué importa:** Piezas muy enlazadas hacen que un cambio se propague y que sea difícil reemplazar partes.
-- **Tu resultado:** **33** unidad(es) con acoplamiento alto _(máximo 2 por 1000 LOC)_
-- **Para investigar la causa:**
-    - ¿Las piezas se conocen en detalle entre sí (acceden a campos o estructuras internas)?
-    - ¿El acceso a datos ocurre desde lugares que no son los responsables?
-    - ¿Se puede cambiar una parte sin tocar las demás?
+- **Tu resultado:** **38** unidad(es) con acoplamiento alto _(máximo 2 por 1000 LOC)_
 
-### 14. Cobertura de tests (Cob) — A REVISAR
+### 14. Cobertura de tests (Cob) — OK
 
 - **Qué mide:** Porcentaje de líneas de código ejecutadas por la suite de tests (cobertura real, no cantidad de archivos de test).
 - **Por qué importa:** Un test que existe pero no ejecuta el código no protege de nada: la cobertura muestra qué partes quedan sin verificar.
-- **Tu resultado:** **44.1%** de líneas cubiertas _(mínimo 80% de líneas)_
-- **Para investigar la causa:**
-    - ¿Qué módulos o ramas del sistema nunca se ejecutan en los tests?
-    - ¿Los tests prueban el camino principal y los errores, o solo el caso feliz?
-    - ¿La suite se puede correr en CI sin base de datos ni servicios externos?
+- **Tu resultado:** **82.1%** de líneas cubiertas · fuente: ejecución: pytest · salteado: frontend-vue, frontend-react _(mínimo 80% de líneas)_
 
 ### 15. Vistas del frontend (Vistas) — OK
 
 - **Qué mide:** Cantidad de vistas/componentes de pantalla del frontend.
 - **Por qué importa:** El frontend se mide por pantallas: pocas vistas sugiere poca cobertura de la interfaz pedida.
-- **Tu resultado:** **119** vista(s)/componente(s) _(mínimo 8)_
+- **Tu resultado:** **141** vista(s)/componente(s) _(mínimo 8)_
 
 ## 5. Qué falta para aprobar
 
@@ -155,10 +151,9 @@ Criterios que hoy están en rojo y qué habría que cambiar para alcanzar el niv
 
 | Criterio | Resultado actual | Meta | Qué arreglar |
 |---|---|---|---|
-| Índice de calidad de servicios (indice) | índice **7/100** | mínimo 60 | Subir el índice a ≥60 corrigiendo primero las señales de más peso: duplicación, secretos, SQL y capas. |
-| Baja cohesión (Coh) | **2** unidad(es) con baja cohesión | máximo 0 | Separar en unidades con una sola responsabilidad; 0 clases con baja cohesión. |
-| Acoplamiento alto (Acop) | **33** unidad(es) con acoplamiento alto | máximo 2 por 1000 LOC | Reducir dependencias directas entre unidades; ≤2 por 1000 LOC. |
-| Cobertura de tests (Cob) | **44.1%** de líneas cubiertas | mínimo 80% de líneas | Publicar cobertura (o correr la suite con coverage) y cubrir ≥80% de líneas. |
+| Índice de calidad de servicios (indice) | índice **4/100** | mínimo 60 | Subir el índice a ≥60 corrigiendo primero las señales de más peso: duplicación, secretos, SQL y capas. |
+| Componente demasiado grande (BigC) | **4** componente(s) demasiado grande(s) | máximo 1 | Dividir el componente por responsabilidad en subcomponentes; ≤1 componente grande. |
+| Baja cohesión (Coh) | **3** unidad(es) con baja cohesión | máximo 0 | Separar en unidades con una sola responsabilidad; 0 clases con baja cohesión. |
 
 > Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo.
 
@@ -166,43 +161,14 @@ Criterios que hoy están en rojo y qué habría que cambiar para alcanzar el niv
 
 Archivos donde el análisis encontró cada señal en rojo (sin número de línea, a propósito):
 
+**Componente demasiado grande (BigC)** — 4 archivo(s):
+- `frontend-react/src/components/Schedule/BlockEditorModal.tsx`
+- `frontend-react/src/components/Schedule/GanttTimeline.tsx`
+- `frontend-vue/src/components/Schedule/GanttTimeline.vue`
+- `frontend-vue/src/pages/ScheduleView.vue`
+
 **Baja cohesión (Coh)** — 1 archivo(s):
 - `backend-python/tests/conftest.py`
-
-**Acoplamiento alto (Acop)** — 33 archivo(s):
-- `backend-node/src/controllers/accounts.controller.ts`
-- `backend-node/src/controllers/auth.controller.ts`
-- `backend-node/src/controllers/categories.controller.ts`
-- `backend-node/src/controllers/finances.controller.ts`
-- `backend-node/src/controllers/notes.controller.ts`
-- `backend-node/src/controllers/tasks.controller.ts`
-- `backend-node/src/controllers/transactions.controller.ts`
-- `backend-node/src/dto/accounts/create-account.dto.ts`
-- `backend-node/src/dto/accounts/update-account.dto.ts`
-- `backend-node/src/dto/auth/register.dto.ts`
-- `backend-node/src/dto/categories/create-category.dto.ts`
-- `backend-node/src/dto/categories/update-category.dto.ts`
-- `backend-node/src/dto/notes/create-note.dto.ts`
-- `backend-node/src/dto/tasks/create-task.dto.ts`
-- `backend-node/src/dto/tasks/task-response.dto.ts`
-- `backend-node/src/dto/tasks/update-task.dto.ts`
-- `backend-node/src/dto/transactions/create-transaction.dto.ts`
-- `backend-node/src/models/transaction.entity.ts`
-- `backend-node/src/services/accounts.service.ts`
-- `backend-node/src/services/auth.service.ts`
-- `backend-node/src/services/categories.service.ts`
-- `backend-node/src/services/finances.service.ts`
-- `backend-node/src/services/hashing/argon2-hashing.service.ts`
-- `backend-node/src/services/notes.service.ts`
-- `backend-node/src/services/tasks.service.ts`
-- `backend-node/src/services/transactions.service.ts`
-- `backend-python/app/core/config.py`
-- `backend-python/app/models/account.py`
-- `backend-python/app/models/transaction.py`
-- `backend-python/app/schemas/auth.py`
-- `backend-python/app/schemas/transaction.py`
-- `backend-python/app/services/hashing.py`
-- `frontend-shared/audioRecorder.ts`
 
 ---
 _Informe generado por la cátedra. Los umbrales corresponden al perfil `exigente`. Ante dudas, revisá el archivo señalado y el criterio en `CRITERIOS-CALIDAD.md`._
