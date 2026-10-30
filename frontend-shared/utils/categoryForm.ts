@@ -1,5 +1,6 @@
 import type { Category, CategoryUpdateRequest } from '../types'
 import { isValidHexColor, isValidName } from '../validation'
+import { withDefaults } from './withDefaults'
 
 export const DEFAULT_COLOR = '#6B7280'
 export const DEFAULT_ICON = 'tag'
@@ -24,13 +25,12 @@ export interface CategoryFormValues {
   icon: string
 }
 
+const NEW_CATEGORY_VALUES: CategoryFormValues = { name: '', targetAmount: '', color: DEFAULT_COLOR, icon: DEFAULT_ICON }
+
 export function initialCategoryValues(category?: Category | null): CategoryFormValues {
-  return {
-    name: category?.name ?? '',
-    targetAmount: category ? String(category.target_amount) : '',
-    color: category?.color ?? DEFAULT_COLOR,
-    icon: category?.icon ?? DEFAULT_ICON,
-  }
+  if (!category) return { ...NEW_CATEGORY_VALUES }
+  const values = { name: category.name, targetAmount: String(category.target_amount), color: category.color, icon: category.icon }
+  return withDefaults(values, NEW_CATEGORY_VALUES)
 }
 
 function isValidTargetAmount(raw: string): boolean {

@@ -55,3 +55,12 @@ export const audioUploadOptions: MulterOptions = {
     }
   },
 };
+
+/** Archivo recibido por `FileInterceptor` (ausente si no se envió el campo `file`). */
+export type UploadedAudio = Express.Multer.File | undefined;
+
+/** `audio_url` público del audio guardado; `400` si no se envió ningún archivo. */
+export function audioUrlOf(file: UploadedAudio): { audio_url: string } {
+  if (!file) throw new BadRequestException(MISSING_AUDIO_MESSAGE);
+  return { audio_url: `${AUDIO_PUBLIC_PREFIX}/${file.filename}` };
+}

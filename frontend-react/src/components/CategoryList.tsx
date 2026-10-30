@@ -9,6 +9,34 @@ type CategoryListProps = {
   onDelete: (category: Category) => void
 }
 
+type CategoryItemProps = {
+  category: Category
+  index: number
+  onEdit: (category: Category) => void
+  onDelete: (category: Category) => void
+}
+
+function CategoryItem({ category, index, onEdit, onDelete }: CategoryItemProps) {
+  return (
+    <li className="flex items-center justify-between gap-3 pulse-card p-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase"
+          style={tintedChipStyle(category.color, index)}
+        >
+          {category.icon.slice(0, 2)}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-fg">{category.name}</p>
+          <p className="text-xs text-fg-muted">{category.icon}</p>
+          <p className="mt-0.5 text-base font-semibold text-fg">{currencyFormatter.format(category.target_amount)}</p>
+        </div>
+      </div>
+      <RowActions name={category.name} onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
+    </li>
+  )
+}
+
 export function CategoryList({ categories, onEdit, onDelete }: CategoryListProps) {
   if (categories.length === 0) {
     return (
@@ -21,24 +49,7 @@ export function CategoryList({ categories, onEdit, onDelete }: CategoryListProps
   return (
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {categories.map((category, index) => (
-        <li key={category.id} className="flex items-center justify-between gap-3 pulse-card p-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-semibold uppercase"
-              style={tintedChipStyle(category.color, index)}
-            >
-              {category.icon.slice(0, 2)}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-fg">{category.name}</p>
-              <p className="text-xs text-fg-muted">{category.icon}</p>
-              <p className="mt-0.5 text-base font-semibold text-fg">
-                {currencyFormatter.format(category.target_amount)}
-              </p>
-            </div>
-          </div>
-          <RowActions name={category.name} onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
-        </li>
+        <CategoryItem key={category.id} category={category} index={index} onEdit={onEdit} onDelete={onDelete} />
       ))}
     </ul>
   )

@@ -4,9 +4,27 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, ForeignKey, Numeric, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.session import Base
+
+
+def tz_datetime_column(**kwargs):
+    """`TIMESTAMPTZ` de init.sql."""
+    return mapped_column(DateTime(timezone=True), **kwargs)
+
+
+def money_column(*args, **kwargs):
+    """`NUMERIC(14, 2)` de init.sql (montos y saldos)."""
+    return mapped_column(*args, Numeric(14, 2), **kwargs)
+
+
+def uuid_column(references: str | None = None, ondelete: str | None = None, **kwargs):
+    """`UUID`, opcionalmente clave foránea a `references` (`tabla.columna`)."""
+    foreign = (ForeignKey(references, ondelete=ondelete),) if references else ()
+    return mapped_column(PGUUID(as_uuid=True), *foreign, **kwargs)
 
 
 class IdMixin:
@@ -37,3 +55,9 @@ class TimestampMixin:
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class OwnedRecord(IdMixin, OwnedMixin, TimestampMixin, Base):
+    """Base abstracta de las tablas con dueño: `id`, `user_id` y marcas de tiempo."""
+
+    __abstract__ = True

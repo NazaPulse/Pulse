@@ -21,6 +21,112 @@ type TaskFormModalProps = {
   onSubmit: (values: CreateTaskDTO) => Promise<void>
 }
 
+type TaskForm = ReturnType<typeof useTaskForm>
+
+/** Título y descripción. */
+function TitleField({ form }: { form: TaskForm }) {
+  const { values, setField, submitting } = form
+  return (
+    <>
+      <Field
+        label="Título"
+        name="title"
+        placeholder="Pagar la tarjeta de crédito"
+        value={values.title}
+        onChange={(e) => setField('title', e.target.value)}
+        disabled={submitting}
+        maxLength={TASK_TITLE_MAX_LENGTH}
+        autoFocus
+        required
+      />
+    </>
+  )
+}
+
+function DescriptionField({ form }: { form: TaskForm }) {
+  const { values, setField, submitting } = form
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="task-description" className="text-sm font-medium text-fg-soft">
+          Descripción (opcional)
+        </label>
+        <textarea
+          id="task-description"
+          name="description"
+          rows={3}
+          placeholder="Vence el resumen de septiembre"
+          value={values.description}
+          onChange={(e) => setField('description', e.target.value)}
+          disabled={submitting}
+          maxLength={TASK_DESCRIPTION_MAX_LENGTH}
+          className="w-full resize-y rounded-lg border border-line-strong bg-canvas/60 px-3.5 py-2.5 text-fg outline-none transition placeholder:text-fg-dim focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:bg-white/5"
+        />
+      </div>
+    </>
+  )
+}
+
+function TextFields({ form }: { form: TaskForm }) {
+  return (
+    <>
+      <TitleField form={form} />
+      <DescriptionField form={form} />
+    </>
+  )
+}
+
+/** Vencimiento y duración estimada. */
+function DueDateField({ form }: { form: TaskForm }) {
+  const { values, submitting } = form
+  return (
+    <>
+      <Field
+        label="Vencimiento (opcional)"
+        type="datetime-local"
+        name="due_date"
+        min={nowLocalInput()}
+        value={values.dueDate}
+        onChange={(e) => form.setDueDate(e.target.value)}
+        disabled={submitting}
+        error={form.dueDateInPast ? DUE_DATE_PAST_MESSAGE : undefined}
+      />
+    </>
+  )
+}
+
+function EstimateField({ form }: { form: TaskForm }) {
+  const { values, setField, submitting } = form
+  return (
+    <>
+      <Field
+        label="Duración estimada en minutos (opcional)"
+        type="number"
+        name="estimated_minutes"
+        inputMode="numeric"
+        min={ESTIMATED_MINUTES_MIN}
+        max={ESTIMATED_MINUTES_MAX}
+        step={5}
+        placeholder="60"
+        value={values.estimatedMinutes}
+        onChange={(e) => setField('estimatedMinutes', e.target.value)}
+        disabled={submitting}
+        hint="El Cronograma la usa al agendar la tarea."
+        error={isValidEstimate(values.estimatedMinutes) ? undefined : ESTIMATED_MINUTES_MESSAGE}
+      />
+    </>
+  )
+}
+
+function PlanningFields({ form }: { form: TaskForm }) {
+  return (
+    <>
+      <DueDateField form={form} />
+      <EstimateField form={form} />
+    </>
+  )
+}
+
 export function TaskFormModal({ onClose, onSubmit }: TaskFormModalProps) {
   const form = useTaskForm(onSubmit)
   const { values, setField, submitting } = form
@@ -30,63 +136,11 @@ export function TaskFormModal({ onClose, onSubmit }: TaskFormModalProps) {
       <form className="flex flex-col gap-4" onSubmit={form.handleSubmit} noValidate>
         {form.error ? <Alert variant="error">{form.error}</Alert> : null}
 
-        <Field
-          label="Título"
-          name="title"
-          placeholder="Pagar la tarjeta de crédito"
-          value={values.title}
-          onChange={(e) => setField('title', e.target.value)}
-          disabled={submitting}
-          maxLength={TASK_TITLE_MAX_LENGTH}
-          autoFocus
-          required
-        />
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="task-description" className="text-sm font-medium text-fg-soft">
-            Descripción (opcional)
-          </label>
-          <textarea
-            id="task-description"
-            name="description"
-            rows={3}
-            placeholder="Vence el resumen de septiembre"
-            value={values.description}
-            onChange={(e) => setField('description', e.target.value)}
-            disabled={submitting}
-            maxLength={TASK_DESCRIPTION_MAX_LENGTH}
-            className="w-full resize-y rounded-lg border border-line-strong bg-canvas/60 px-3.5 py-2.5 text-fg outline-none transition placeholder:text-fg-dim focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:bg-white/5"
-          />
-        </div>
+        <TextFields form={form} />
 
         <PriorityPicker value={values.priority} disabled={submitting} onChange={(p) => setField('priority', p)} />
 
-        <Field
-          label="Vencimiento (opcional)"
-          type="datetime-local"
-          name="due_date"
-          min={nowLocalInput()}
-          value={values.dueDate}
-          onChange={(e) => form.setDueDate(e.target.value)}
-          disabled={submitting}
-          error={form.dueDateInPast ? DUE_DATE_PAST_MESSAGE : undefined}
-        />
-
-        <Field
-          label="Duración estimada en minutos (opcional)"
-          type="number"
-          name="estimated_minutes"
-          inputMode="numeric"
-          min={ESTIMATED_MINUTES_MIN}
-          max={ESTIMATED_MINUTES_MAX}
-          step={5}
-          placeholder="60"
-          value={values.estimatedMinutes}
-          onChange={(e) => setField('estimatedMinutes', e.target.value)}
-          disabled={submitting}
-          hint="El Cronograma la usa al agendar la tarea."
-          error={isValidEstimate(values.estimatedMinutes) ? undefined : ESTIMATED_MINUTES_MESSAGE}
-        />
+        <PlanningFields form={form} />
 
         <SubmitButton loading={submitting} disabled={!form.canSubmit} loadingLabel="Guardando…">
           Crear tarea

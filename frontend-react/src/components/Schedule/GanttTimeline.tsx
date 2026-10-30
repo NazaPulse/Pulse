@@ -1,12 +1,15 @@
 import { useRef, useState } from 'react'
-import type { DragEvent, KeyboardEvent, PointerEvent } from 'react'
+import type { CSSProperties, ReactNode, RefObject } from 'react'
 
 import * as schedule from '@shared/schedule'
-import type { BlockSpan, DragMode, ZoomMode } from '@shared/schedule'
+import type { BlockSpan, ZoomMode } from '@shared/schedule'
 import type { Task, TimeBlock } from '../../types/productivity'
 import { GanttBlock, LANE_HEIGHT } from './GanttBlock'
+import * as interactions from '@shared/ganttInteractions'
+import type { DragState, TimelineCallbacks, TimelineContext } from '@shared/ganttInteractions'
+import { EmptyTimelineHint, GhostSpan, HourRuler, NowLine, TimelineFrame } from './GanttTimelineParts'
 
-type GanttTimelineProps = {
+type GanttTimelineProps = TimelineCallbacks & {
   day: Date
   view: BlockSpan
   zoom: ZoomMode
@@ -17,227 +20,115 @@ type GanttTimelineProps = {
   nowMinute: number | null
   /** Duración de la tarea elegida para "tocar y ubicar"; `null` si no hay ninguna. */
   placingMinutes: number | null
-  /** `taskId` es `null` cuando se ubica la tarea elegida con "tocar y ubicar". */
-  onPlaceTask: (taskId: string | null, minute: number) => void
-  onCreateSpan: (span: BlockSpan) => void
-  onCommitSpan: (block: TimeBlock, span: BlockSpan) => void
-  onOpen: (block: TimeBlock) => void
-  onFocus: (block: TimeBlock) => void
-  onDelete: (block: TimeBlock) => void
 }
 
-/** Arrastre en curso: de un bloque (mover/redimensionar) o sobre el vacío (crear un tramo). */
-type DragState =
-  | { kind: 'block'; block: TimeBlock; mode: DragMode; originX: number; origin: BlockSpan; preview: BlockSpan; moved: boolean }
-  | { kind: 'create'; originX: number; anchor: number; preview: BlockSpan; moved: boolean }
+type TrackContext = TimelineContext & { ghostMinute: number | null }
+
+function useTimelineContext(props: GanttTimelineProps, trackRef: RefObject<HTMLDivElement | null>): TrackContext {
+  const [drag, setDrag] = useState<DragState | null>(null)
+  const [ghostMinute, setGhostMinute] = useState<number | null>(null)
+  const trackRect = () => trackRef.current?.getBoundingClientRect() ?? { left: 0, width: 1 }
+  const { day, view, blocks, placingMinutes } = props
+  return {
+    day,
+    view,
+    blocks,
+    placingMinutes,
+    callbacks: props,
+    drag,
+    setDrag,
+    ghostMinute,
+    setGhostMinute,
+    trackRect,
+  }
+}
+
+/** Al montar (una vez por día y zoom: la grilla se remonta) se desplaza hasta "ahora". */
+function useScrollToStart({ zoom, nowMinute, blocks, day }: GanttTimelineProps) {
+  const scrolled = useRef(false)
+  return (container: HTMLDivElement | null) => {
+    if (!container || scrolled.current || zoom !== 'day') return
+    scrolled.current = true
+    const minute = schedule.initialScrollMinute(nowMinute, blocks, day)
+    container.scrollLeft = (minute / schedule.DAY_MINUTES) * container.scrollWidth
+  }
+}
+
+type TrackProps = {
+  ctx: TrackContext
+  trackRef: RefObject<HTMLDivElement | null>
+  style: CSSProperties
+  children: ReactNode
+}
+
+/** Pista de la grilla: crear arrastrando sobre el vacío y soltar tareas. */
+function TimelineTrack({ ctx, trackRef, style, children }: TrackProps) {
+  return (
+    <div
+      ref={trackRef}
+      className={`relative touch-none ${ctx.placingMinutes !== null ? 'cursor-copy' : 'cursor-crosshair'}`}
+      style={style}
+      onPointerDown={(event) => interactions.startCreateDrag(ctx, event)}
+      onPointerMove={(event) => interactions.moveDrag(ctx, event)}
+      onPointerUp={() => interactions.endDrag(ctx)}
+      onPointerCancel={() => ctx.setDrag(null)}
+      onPointerLeave={() => !ctx.drag && ctx.setGhostMinute(null)}
+      onDragOver={(event) => interactions.handleDragOver(ctx, event)}
+      onDragLeave={() => ctx.setGhostMinute(null)}
+      onDrop={(event) => interactions.handleDrop(ctx, event)}
+    >
+      {children}
+    </div>
+  )
+}
+
+function TimelineBlock({ block, props, ctx }: { block: TimeBlock; props: GanttTimelineProps; ctx: TimelineContext }) {
+  return (
+    <GanttBlock
+      block={block}
+      span={interactions.displayedSpan(ctx.drag, block, props.day)}
+      view={props.view}
+      lane={props.layout.lanes.get(block.id) ?? 0}
+      conflict={props.conflicts.has(block.id)}
+      pastDeadline={schedule.isPastDeadline(block, props.tasksById)}
+      dragging={interactions.isDraggingBlock(ctx.drag, block)}
+      onDragStart={(mode, event) => interactions.startBlockDrag(ctx, block, mode, event)}
+      onKeyDown={(event) => interactions.handleBlockKey(ctx, block, event)}
+      onFocus={() => props.onFocus(block)}
+      onDelete={() => props.onDelete(block)}
+    />
+  )
+}
 
 /**
  * Grilla horizontal con línea de tiempo en vivo. Alta por drag & drop de tareas, por "tocar y
  * ubicar" (táctil) o arrastrando sobre el vacío; bloques editables con imán y teclado.
  */
 export function GanttTimeline(props: GanttTimelineProps) {
-  const { day, view, zoom, blocks, conflicts, layout, nowMinute } = props
+  const { day, view } = props
   const trackRef = useRef<HTMLDivElement>(null)
-  const scrolled = useRef(false)
-  const [drag, setDrag] = useState<DragState | null>(null)
-  const [ghostMinute, setGhostMinute] = useState<number | null>(null)
-
-  function trackRect() {
-    return trackRef.current?.getBoundingClientRect() ?? { left: 0, width: 1 }
-  }
-
-  /** Al montar (una vez por día y zoom: la grilla se remonta) se desplaza hasta "ahora". */
-  function scrollToStart(container: HTMLDivElement | null) {
-    if (!container || scrolled.current || zoom !== 'day') return
-    scrolled.current = true
-    const minute = schedule.initialScrollMinute(nowMinute, blocks, day)
-    container.scrollLeft = (minute / schedule.DAY_MINUTES) * container.scrollWidth
-  }
-
-  const otherSpans = (block: TimeBlock) =>
-    blocks.filter((other) => other.id !== block.id).map((other) => schedule.blockSpan(other, day))
-
-  function startBlockDrag(block: TimeBlock, mode: DragMode, event: PointerEvent<HTMLElement>) {
-    if (event.button !== 0) return
-    event.stopPropagation()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    const origin = schedule.blockSpan(block, day)
-    setDrag({ kind: 'block', block, mode, originX: event.clientX, origin, preview: origin, moved: false })
-  }
-
-  function startCreateDrag(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0 || event.target !== event.currentTarget) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    const anchor = schedule.minuteAtPointer(event.clientX, trackRect(), view)
-    const preview = { start: anchor, end: anchor + schedule.MIN_BLOCK_MINUTES }
-    setDrag({ kind: 'create', originX: event.clientX, anchor, preview, moved: false })
-  }
-
-  function moveDrag(event: PointerEvent) {
-    if (!drag) {
-      setGhostMinute(props.placingMinutes === null ? null : schedule.minuteAtPointer(event.clientX, trackRect(), view))
-      return
-    }
-    const moved = drag.moved || Math.abs(event.clientX - drag.originX) >= schedule.DRAG_THRESHOLD_PX
-    if (drag.kind === 'block') {
-      const delta = schedule.pixelsToMinutes(event.clientX - drag.originX, trackRect().width, view)
-      const raw = schedule.dragSpan(drag.origin, drag.mode, delta)
-      setDrag({ ...drag, moved, preview: schedule.magnetize(raw, drag.mode, otherSpans(drag.block)) })
-      return
-    }
-    const current = schedule.minuteAtPointer(event.clientX, trackRect(), view)
-    const start = Math.min(drag.anchor, current)
-    const end = Math.max(drag.anchor, current, start + schedule.MIN_BLOCK_MINUTES)
-    setDrag({ ...drag, moved, preview: { start, end } })
-  }
-
-  function endDrag() {
-    if (!drag) return
-    setDrag(null)
-    if (drag.kind === 'block') {
-      if (!drag.moved) props.onOpen(drag.block)
-      else if (!schedule.sameSpan(drag.origin, drag.preview)) props.onCommitSpan(drag.block, drag.preview)
-      return
-    }
-    setGhostMinute(null)
-    if (drag.moved) props.onCreateSpan(drag.preview)
-    else if (props.placingMinutes !== null) props.onPlaceTask(null, drag.anchor)
-  }
-
-  function handleBlockKey(block: TimeBlock, event: KeyboardEvent<HTMLDivElement>) {
-    if (event.target !== event.currentTarget) return
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      props.onOpen(block)
-      return
-    }
-    if (event.key === 'Delete' || event.key === 'Backspace') {
-      event.preventDefault()
-      props.onDelete(block)
-      return
-    }
-    const mods = { shift: event.shiftKey, alt: event.altKey }
-    const next = schedule.keyboardSpan(schedule.blockSpan(block, day), event.key, mods)
-    if (!next) return
-    event.preventDefault()
-    props.onCommitSpan(block, next)
-  }
-
-  function acceptsTask(event: DragEvent) {
-    return event.dataTransfer.types.includes(schedule.TASK_DRAG_MIME)
-  }
-
-  function handleDragOver(event: DragEvent) {
-    if (!acceptsTask(event)) return
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'copy'
-    setGhostMinute(schedule.minuteAtPointer(event.clientX, trackRect(), view))
-  }
-
-  function handleDrop(event: DragEvent) {
-    if (!acceptsTask(event)) return
-    event.preventDefault()
-    setGhostMinute(null)
-    const minute = schedule.minuteAtPointer(event.clientX, trackRect(), view)
-    props.onPlaceTask(event.dataTransfer.getData(schedule.TASK_DRAG_MIME), minute)
-  }
-
-  const ghostLength = props.placingMinutes ?? schedule.DEFAULT_DROP_MINUTES
-  let ghost: BlockSpan | null = null
-  if (drag?.kind === 'create') ghost = drag.preview
-  else if (ghostMinute !== null) ghost = { start: ghostMinute, end: Math.min(ghostMinute + ghostLength, schedule.DAY_MINUTES) }
-
-  const visibleBlocks = blocks.filter((block) => schedule.isVisible(schedule.blockSpan(block, day), view))
-  const marks = schedule.hourMarks(view)
-  const grid = schedule.gridStyle(view, zoom)
-
-  function markClass(minute: number) {
-    if (minute === view.end) return '-translate-x-full'
-    return minute === view.start ? '' : '-translate-x-1/2'
+  const ctx = useTimelineContext(props, trackRef)
+  const onMount = useScrollToStart(props)
+  const ghost = interactions.ghostSpan(ctx.drag, ctx.ghostMinute, props.placingMinutes)
+  const visibleBlocks = props.blocks.filter((block) => schedule.isVisible(schedule.blockSpan(block, day), view))
+  const grid = schedule.gridStyle(view, props.zoom)
+  const trackStyle = {
+    backgroundImage: grid.backgroundImage,
+    backgroundSize: grid.backgroundSize,
+    height: props.layout.laneCount * LANE_HEIGHT + 12,
   }
 
   return (
-    <div ref={scrollToStart} className="overflow-x-auto">
-      <div className="relative px-4 pb-4" style={{ minWidth: grid.minWidth }}>
-        <div className="relative h-8 border-b border-line">
-          {marks.map((minute) => (
-            <span
-              key={minute}
-              className={`absolute top-2 font-mono text-[0.625rem] text-fg-dim ${markClass(minute)}`}
-              style={{ left: schedule.minuteToPercent(minute, view) }}
-            >
-              {schedule.formatMinute(minute)}
-            </span>
-          ))}
-        </div>
-
-        <div
-          ref={trackRef}
-          className={`relative touch-none ${props.placingMinutes !== null ? 'cursor-copy' : 'cursor-crosshair'}`}
-          style={{
-            backgroundImage: grid.backgroundImage,
-            backgroundSize: grid.backgroundSize,
-            height: layout.laneCount * LANE_HEIGHT + 12,
-          }}
-          onPointerDown={startCreateDrag}
-          onPointerMove={moveDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={() => setDrag(null)}
-          onPointerLeave={() => !drag && setGhostMinute(null)}
-          onDragOver={handleDragOver}
-          onDragLeave={() => setGhostMinute(null)}
-          onDrop={handleDrop}
-        >
-          {visibleBlocks.length === 0 && !ghost ? (
-            <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-fg-dim">
-              Sin bloques. Arrastrá sobre la grilla para crear uno o soltá una tarea.
-            </p>
-          ) : null}
-
-          {ghost ? (
-            <div
-              className="pointer-events-none absolute z-0 flex items-center justify-center rounded-lg border border-dashed border-accent/70 bg-accent/10 font-mono text-[0.625rem] text-accent"
-              style={{ ...schedule.spanStyle(ghost, view), top: 6, height: LANE_HEIGHT - 10 }}
-              aria-hidden="true"
-            >
-              {schedule.spanLabel(ghost)}
-            </div>
-          ) : null}
-
-          {visibleBlocks.map((block) => {
-            const dragging = drag?.kind === 'block' && drag.block.id === block.id
-            return (
-              <GanttBlock
-                key={block.id}
-                block={block}
-                span={dragging ? drag.preview : schedule.blockSpan(block, day)}
-                view={view}
-                lane={layout.lanes.get(block.id) ?? 0}
-                conflict={conflicts.has(block.id)}
-                pastDeadline={schedule.isPastDeadline(block, props.tasksById)}
-                dragging={dragging}
-                onDragStart={(mode, event) => startBlockDrag(block, mode, event)}
-                onKeyDown={(event) => handleBlockKey(block, event)}
-                onFocus={() => props.onFocus(block)}
-                onDelete={() => props.onDelete(block)}
-              />
-            )
-          })}
-
-          {nowMinute !== null && nowMinute >= view.start && nowMinute <= view.end ? (
-            <div
-              className="pointer-events-none absolute -top-8 bottom-0 z-30 w-0.5 -translate-x-1/2 bg-accent shadow-glow-sm"
-              style={{ left: schedule.minuteToPercent(nowMinute, view) }}
-              aria-hidden="true"
-            >
-              <span className="absolute -top-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 animate-blink rounded-full bg-accent shadow-glow-sm" />
-              <span className="absolute left-2 top-0 rounded bg-accent px-1.5 py-0.5 font-mono text-[0.625rem] font-semibold text-ink">
-                {schedule.formatMinute(nowMinute)}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
+    <TimelineFrame minWidth={grid.minWidth} onMount={onMount}>
+      <HourRuler view={view} />
+      <TimelineTrack ctx={ctx} trackRef={trackRef} style={trackStyle}>
+        {visibleBlocks.length === 0 && !ghost ? <EmptyTimelineHint /> : null}
+        {ghost ? <GhostSpan ghost={ghost} view={view} /> : null}
+        {visibleBlocks.map((block) => (
+          <TimelineBlock key={block.id} block={block} props={props} ctx={ctx} />
+        ))}
+        <NowLine nowMinute={props.nowMinute} view={view} />
+      </TimelineTrack>
+    </TimelineFrame>
   )
 }

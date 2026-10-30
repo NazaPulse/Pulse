@@ -9,9 +9,39 @@ import { usePomodoroSession } from '../components/Pomodoro/usePomodoroSession'
 
 const SUBTITLE = `Bloques de 25 minutos de concentración con descansos cortos y, cada ${WORK_SESSIONS_PER_LONG_BREAK} bloques, uno largo.`
 
+/** Bloques de trabajo del ciclo actual (hasta el descanso largo) y total completado. */
+function SessionDots({ completed }: { completed: number }) {
+  const sessionInCycle = completed % WORK_SESSIONS_PER_LONG_BREAK
+  return (
+    <div className="flex flex-col items-center gap-2 border-t border-line pt-4">
+      <div className="flex gap-1.5" aria-hidden="true">
+        {Array.from({ length: WORK_SESSIONS_PER_LONG_BREAK }, (_, i) => (
+          <span
+            key={i}
+            className={`h-2.5 w-2.5 rounded-full ${i < sessionInCycle ? 'bg-danger-soft' : 'bg-white/10'}`}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-fg-muted">{completedSessionsLabel(completed)}</p>
+    </div>
+  )
+}
+
+type Session = ReturnType<typeof usePomodoroSession>
+
+function TimerDial({ timer, clock }: Pick<Session, 'timer' | 'clock'>) {
+  return (
+    <ProgressRing progress={timer.progress} colorClass={MODE_STYLES[timer.mode].ring}>
+      <span className="font-mono text-6xl font-semibold tabular-nums tracking-tight text-fg" aria-live="off">
+        {clock}
+      </span>
+      <span className="mt-1 text-sm text-fg-muted">{timer.status}</span>
+    </ProgressRing>
+  )
+}
+
 export function PomodoroPage() {
   const { timer, clock, message, focus, start, selectMode, reset } = usePomodoroSession()
-  const sessionInCycle = timer.completedWorkSessions % WORK_SESSIONS_PER_LONG_BREAK
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:py-10">
@@ -24,12 +54,7 @@ export function PomodoroPage() {
 
         {message ? <Alert variant="success">{message}</Alert> : null}
 
-        <ProgressRing progress={timer.progress} colorClass={MODE_STYLES[timer.mode].ring}>
-          <span className="font-mono text-6xl font-semibold tabular-nums tracking-tight text-fg" aria-live="off">
-            {clock}
-          </span>
-          <span className="mt-1 text-sm text-fg-muted">{timer.status}</span>
-        </ProgressRing>
+        <TimerDial timer={timer} clock={clock} />
 
         <PomodoroControls
           mode={timer.mode}
@@ -40,17 +65,7 @@ export function PomodoroPage() {
           onReset={reset}
         />
 
-        <div className="flex flex-col items-center gap-2 border-t border-line pt-4">
-          <div className="flex gap-1.5" aria-hidden="true">
-            {Array.from({ length: WORK_SESSIONS_PER_LONG_BREAK }, (_, i) => (
-              <span
-                key={i}
-                className={`h-2.5 w-2.5 rounded-full ${i < sessionInCycle ? 'bg-danger-soft' : 'bg-white/10'}`}
-              />
-            ))}
-          </div>
-          <p className="text-xs text-fg-muted">{completedSessionsLabel(timer.completedWorkSessions)}</p>
-        </div>
+        <SessionDots completed={timer.completedWorkSessions} />
       </div>
     </section>
   )

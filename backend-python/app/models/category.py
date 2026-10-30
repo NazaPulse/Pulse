@@ -11,19 +11,16 @@ from __future__ import annotations
 
 import decimal
 
-from sqlalchemy import Numeric, String
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.session import Base
-from app.models.base import IdMixin, OwnedMixin, TimestampMixin
+from app.models.base import OwnedRecord, money_column
 
 
-class Category(IdMixin, OwnedMixin, TimestampMixin, Base):
+class Category(OwnedRecord):
     __tablename__ = "categories"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    target_amount: Mapped[decimal.Decimal] = mapped_column(
-        "monthly_limit", Numeric(14, 2), nullable=False, server_default="0"
-    )
+    target_amount: Mapped[decimal.Decimal] = money_column("monthly_limit", nullable=False, server_default="0")
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)
     icon: Mapped[str | None] = mapped_column(String(50), nullable=True)

@@ -30,9 +30,9 @@ class AccountCreateRequest(BaseModel):
 
 
 class AccountUpdateRequest(BaseModel):
-    """`AccountUpdateRequest` — cuerpo de `PUT /api/accounts/{id}`.
+    """`AccountUpdateRequest` — cuerpo del reemplazo de `/api/accounts/{id}`.
 
-    Reemplaza `name`/`type`. `balance` no es editable manualmente (se
+    Se reemplazan `name`/`type`. `balance` no es editable manualmente (se
     recalcula a partir de las transacciones asociadas).
     """
 
@@ -67,8 +67,8 @@ class CategoryCreateRequest(BaseModel):
 
 
 class CategoryUpdateRequest(BaseModel):
-    """`CategoryUpdateRequest` — cuerpo de `PUT /api/categories/{id}`.
-    Reemplazo total: todos los campos son requeridos.
+    """`CategoryUpdateRequest` — cuerpo del reemplazo de `/api/categories/{id}`:
+    reemplazo total, todos los campos son requeridos.
     """
 
     model_config = ConfigDict(extra="forbid")

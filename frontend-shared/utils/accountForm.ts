@@ -1,5 +1,6 @@
 import type { Account, AccountCreateRequest, AccountType } from '../types'
 import { isValidName } from '../validation'
+import { withDefaults } from './withDefaults'
 
 export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'bank', label: 'Banco' },
@@ -20,12 +21,12 @@ export interface AccountFormValues {
   initialBalance: string
 }
 
+const NEW_ACCOUNT_VALUES: AccountFormValues = { name: '', type: 'bank', initialBalance: '0' }
+
 export function initialAccountValues(account?: Account | null): AccountFormValues {
-  return {
-    name: account?.name ?? '',
-    type: account?.type ?? 'bank',
-    initialBalance: account ? String(account.initial_balance ?? 0) : '0',
-  }
+  if (!account) return { ...NEW_ACCOUNT_VALUES }
+  const values = { name: account.name, type: account.type, initialBalance: String(account.initial_balance ?? 0) }
+  return withDefaults(values, NEW_ACCOUNT_VALUES)
 }
 
 /** Al editar, el saldo inicial no se envía: solo se valida al crear. */

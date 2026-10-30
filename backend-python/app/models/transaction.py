@@ -10,28 +10,27 @@ import datetime as dt
 import decimal
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.session import Base
-from app.models.base import IdMixin, OwnedMixin, TimestampMixin
+from app.models.base import OwnedRecord, money_column, tz_datetime_column, uuid_column
 from app.models.account import Account
 from app.models.category import Category
 
 
-class Transaction(IdMixin, OwnedMixin, TimestampMixin, Base):
+# Claves foráneas (tabla.columna, ON DELETE) de init.sql.
+_ACCOUNT_FK = ("accounts.id", "CASCADE")
+_CATEGORY_FK = ("categories.id", "SET NULL")
+
+
+class Transaction(OwnedRecord):
     __tablename__ = "transactions"
 
-    account_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-    )
-    category_id: Mapped[uuid.UUID | None] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
-    )
-    amount: Mapped[decimal.Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    account_id: Mapped[uuid.UUID] = uuid_column(*_ACCOUNT_FK, nullable=False)
+    category_id: Mapped[uuid.UUID | None] = uuid_column(*_CATEGORY_FK, nullable=True)
+    amount: Mapped[decimal.Decimal] = money_column(nullable=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False)
-    date: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    date: Mapped[dt.datetime] = tz_datetime_column(nullable=False)
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     account: Mapped[Account] = relationship(Account)

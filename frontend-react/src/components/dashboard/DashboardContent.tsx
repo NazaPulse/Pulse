@@ -11,6 +11,38 @@ interface DashboardContentProps {
   modals: DashboardModalsState
 }
 
+function AccountsSection({ data, modals }: DashboardContentProps) {
+  return (
+    <DashboardSection
+      title="Cuentas"
+      actionLabel="+ Nueva cuenta"
+      onAction={() => modals.setAccountModal({ account: null })}
+    >
+      <AccountList
+        accounts={data.accounts}
+        onEdit={(account) => modals.setAccountModal({ account })}
+        onDelete={(item) => modals.setDeleteTarget({ kind: 'account', item })}
+      />
+    </DashboardSection>
+  )
+}
+
+function CategoriesSection({ data, modals }: DashboardContentProps) {
+  return (
+    <DashboardSection
+      title="Sobres de presupuesto"
+      actionLabel="+ Nuevo sobre"
+      onAction={() => modals.setCategoryModal({ category: null })}
+    >
+      <CategoryList
+        categories={data.categories}
+        onEdit={(category) => modals.setCategoryModal({ category })}
+        onDelete={(item) => modals.setDeleteTarget({ kind: 'category', item })}
+      />
+    </DashboardSection>
+  )
+}
+
 export function DashboardContent({ data, modals }: DashboardContentProps) {
   const { accounts, categories, transactions, summary } = data
   return (
@@ -21,29 +53,8 @@ export function DashboardContent({ data, modals }: DashboardContentProps) {
         </div>
       ) : null}
 
-      <DashboardSection
-        title="Cuentas"
-        actionLabel="+ Nueva cuenta"
-        onAction={() => modals.setAccountModal({ account: null })}
-      >
-        <AccountList
-          accounts={accounts}
-          onEdit={(account) => modals.setAccountModal({ account })}
-          onDelete={(item) => modals.setDeleteTarget({ kind: 'account', item })}
-        />
-      </DashboardSection>
-
-      <DashboardSection
-        title="Sobres de presupuesto"
-        actionLabel="+ Nuevo sobre"
-        onAction={() => modals.setCategoryModal({ category: null })}
-      >
-        <CategoryList
-          categories={categories}
-          onEdit={(category) => modals.setCategoryModal({ category })}
-          onDelete={(item) => modals.setDeleteTarget({ kind: 'category', item })}
-        />
-      </DashboardSection>
+      <AccountsSection data={data} modals={modals} />
+      <CategoriesSection data={data} modals={modals} />
 
       <DashboardSection
         title="Historial de movimientos"

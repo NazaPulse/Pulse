@@ -3,6 +3,7 @@
 // resolución de conflictos, formulario de bloque, resumen planificado vs. real, semana,
 // preferencias y foco Pomodoro. Los componentes de cada frontend solo las conectan a su estado.
 import { MODE_DURATIONS_MS } from './pomodoro'
+import { withDefaults } from './utils/withDefaults'
 import type {
   CreateTimeBlockDTO,
   ScheduleRange,
@@ -201,41 +202,69 @@ export function dragSpan(span: BlockSpan, mode: DragMode, deltaMinutes: number):
   return { start: span.start + shift, end: span.end + shift }
 }
 
-/** Borde vecino más cercano a `minute` dentro del umbral del imán, o `null`. */
+const withinMagnet = (distance: number) => distance > 0 && distance <= MAGNET_MINUTES
+
+/** Borde vecino más cercano a `minute` dentro del umbral del imán, o `null` (ante empates, el primero). */
 function nearestEdge(minute: number, edges: number[]): number | null {
-  let best: number | null = null
-  for (const edge of edges) {
-    const distance = Math.abs(edge - minute)
-    if (distance > 0 && distance <= MAGNET_MINUTES && (best === null || distance < Math.abs(best - minute))) best = edge
-  }
-  return best
+  const candidates = edges.filter((edge) => withinMagnet(Math.abs(edge - minute)))
+  return candidates.reduce<number | null>(
+    (best, edge) => (best === null || Math.abs(edge - minute) < Math.abs(best - minute) ? edge : best),
+    null,
+  )
+}
+
+/** Desplazamiento de `from` hasta `edge`, o `null` si no hay borde. */
+const shiftTo = (edge: number | null, from: number) => (edge === null ? null : edge - from)
+
+const smallestShift = (shifts: number[]) => shifts.reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a))
+
+function magnetStart(span: BlockSpan, edges: number[]): BlockSpan {
+  const edge = nearestEdge(span.start, edges)
+  return edge !== null && edge <= span.end - MIN_BLOCK_MINUTES ? { ...span, start: edge } : span
+}
+
+function magnetEnd(span: BlockSpan, edges: number[]): BlockSpan {
+  const edge = nearestEdge(span.end, edges)
+  return edge !== null && edge >= span.start + MIN_BLOCK_MINUTES ? { ...span, end: edge } : span
+}
+
+/** Al mover, pega el borde (inicio o fin) que quede más cerca de un vecino. */
+function magnetMove(span: BlockSpan, edges: number[]): BlockSpan {
+  const shifts = [shiftTo(nearestEdge(span.start, edges), span.start), shiftTo(nearestEdge(span.end, edges), span.end)]
+  const valid = shifts.filter((shift): shift is number => shift !== null)
+  if (valid.length === 0) return span
+  const shift = smallestShift(valid)
+  return { start: span.start + shift, end: span.end + shift }
+}
+
+const MAGNETS: Record<DragMode, (span: BlockSpan, edges: number[]) => BlockSpan> = {
+  start: magnetStart,
+  end: magnetEnd,
+  move: magnetMove,
 }
 
 /** Imán: pega el borde arrastrado (o el más cercano, al mover) al de un bloque vecino. */
 export function magnetize(span: BlockSpan, mode: DragMode, others: BlockSpan[]): BlockSpan {
   const edges = others.flatMap((other) => [other.start, other.end])
-  if (mode === 'start') {
-    const edge = nearestEdge(span.start, edges)
-    return edge !== null && edge <= span.end - MIN_BLOCK_MINUTES ? { ...span, start: edge } : span
-  }
-  if (mode === 'end') {
-    const edge = nearestEdge(span.end, edges)
-    return edge !== null && edge >= span.start + MIN_BLOCK_MINUTES ? { ...span, end: edge } : span
-  }
-  const shifts = [nearestEdge(span.start, edges), nearestEdge(span.end, edges)]
-    .map((edge, i) => (edge === null ? null : edge - (i === 0 ? span.start : span.end)))
-    .filter((shift): shift is number => shift !== null)
-  if (shifts.length === 0) return span
-  const shift = shifts.reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a))
-  return { start: span.start + shift, end: span.end + shift }
+  return MAGNETS[mode](span, edges)
+}
+
+const KEY_DELTAS = new Map([
+  ['ArrowLeft', -SNAP_MINUTES],
+  ['ArrowRight', SNAP_MINUTES],
+])
+
+/** Con Shift se ajusta el fin, con Alt el inicio; sin modificadores se mueve el bloque. */
+function keyboardMode(mods: { shift: boolean; alt: boolean }): DragMode {
+  if (mods.shift) return 'end'
+  return mods.alt ? 'start' : 'move'
 }
 
 /** Teclado: ←/→ mueve 15 min; con Shift ajusta el fin y con Alt el inicio. `null` si no aplica. */
 export function keyboardSpan(span: BlockSpan, key: string, mods: { shift: boolean; alt: boolean }): BlockSpan | null {
-  if (key !== 'ArrowLeft' && key !== 'ArrowRight') return null
-  const delta = key === 'ArrowLeft' ? -SNAP_MINUTES : SNAP_MINUTES
-  const mode: DragMode = mods.shift ? 'end' : mods.alt ? 'start' : 'move'
-  const next = dragSpan(span, mode, delta)
+  const delta = KEY_DELTAS.get(key)
+  if (delta === undefined) return null
+  const next = dragSpan(span, keyboardMode(mods), delta)
   return sameSpan(next, span) ? null : next
 }
 
@@ -329,20 +358,24 @@ export function blockFromTask(task: Task, dayStart: Date, minute: number): Creat
   return { title: task.title, category: 'work', task_id: task.id, ...spanToTimes({ start, end }, dayStart) }
 }
 
+/** Franja disponible para agendar: el horario laboral, desde "ahora" si el día es hoy. */
+export const planningWindow = (hours: WorkHours, nowMinuteOfDay: number | null): BlockSpan => ({
+  start: Math.max(hours.start, nowMinuteOfDay ?? 0),
+  end: hours.end,
+})
+
 /**
  * Agendado automático: ubica las tareas pendientes aún no agendadas, en orden de prioridad y
- * vencimiento, en el primer hueco libre del horario laboral (desde "ahora" si el día es hoy).
+ * vencimiento, en el primer hueco libre de `window` (ver {@link planningWindow}).
  */
 export function autoSchedule(
   tasks: Task[],
   blocks: TimeBlock[],
   dayStart: Date,
-  hours: WorkHours,
-  nowMinuteOfDay: number | null,
+  window: BlockSpan,
 ): { planned: CreateTimeBlockDTO[]; skipped: Task[] } {
   const taken = scheduledTaskIds(blocks)
   const busy = busySpans(blocks, dayStart)
-  const window = { start: Math.max(hours.start, nowMinuteOfDay ?? 0), end: hours.end }
   const planned: CreateTimeBlockDTO[] = []
   const skipped: Task[] = []
 
@@ -519,17 +552,39 @@ export function parseTime(value: string): number | null {
 /** Día de referencia del formulario: el del inicio del bloque (o el día visible al crear). */
 export const formBaseDay = (block: TimeBlock | null, day: Date) => (block ? startOfDay(new Date(block.start_time)) : startOfDay(day))
 
+const DEFAULT_FORM_SPAN: BlockSpan = { start: 9 * 60, end: 10 * 60 }
+
+type BlockFormFields = Pick<BlockFormValues, 'title' | 'description' | 'category' | 'actualMinutes' | 'isCompleted'>
+
+const NEW_BLOCK_FIELDS: BlockFormFields = { title: '', description: '', category: 'other', actualMinutes: '0', isCompleted: false }
+
+function blockFields(block: TimeBlock): BlockFormFields {
+  const fields = {
+    title: block.title,
+    description: block.description,
+    category: block.category,
+    actualMinutes: String(block.actual_duration_minutes ?? 0),
+    isCompleted: block.is_completed,
+  }
+  return withDefaults(fields, NEW_BLOCK_FIELDS)
+}
+
+/** Tramo inicial del formulario: el del bloque, el elegido en la grilla o 09:00–10:00. */
+const formSpan = (block: TimeBlock | null, base: Date, span?: BlockSpan) =>
+  block ? blockSpan(block, base) : (span ?? DEFAULT_FORM_SPAN)
+
 export function blockFormValues(block: TimeBlock | null, base: Date, span?: BlockSpan): BlockFormValues {
-  const source = block ? blockSpan(block, base) : (span ?? { start: 9 * 60, end: 10 * 60 })
+  const fields = block ? blockFields(block) : NEW_BLOCK_FIELDS
+  const source = formSpan(block, base, span)
   return {
-    title: block?.title ?? '',
-    description: block?.description ?? '',
-    category: block?.category ?? 'other',
+    title: fields.title,
+    description: fields.description,
+    category: fields.category,
     start: toTimeInput(source.start),
     end: toTimeInput(source.end),
     endsNextDay: source.end >= DAY_MINUTES,
-    actualMinutes: String(block?.actual_duration_minutes ?? 0),
-    isCompleted: block?.is_completed ?? false,
+    actualMinutes: fields.actualMinutes,
+    isCompleted: fields.isCompleted,
     completeTask: true,
   }
 }
@@ -544,19 +599,27 @@ export function blockFormSpan(values: BlockFormValues): BlockSpan | null {
 
 const parseMinutes = (value: string) => (/^\d+$/.test(value.trim()) ? Number(value.trim()) : null)
 
-/** Primer error del formulario, o `null` si se puede enviar. */
-export function blockFormError(values: BlockFormValues): string | null {
+function textFieldsError(values: BlockFormValues): string | null {
   const title = values.title.trim()
   if (!title) return 'El título es obligatorio.'
   if (title.length > BLOCK_TITLE_MAX_LENGTH) return `El título admite hasta ${BLOCK_TITLE_MAX_LENGTH} caracteres.`
   if (values.description.length > BLOCK_DESCRIPTION_MAX_LENGTH) {
     return `La descripción admite hasta ${BLOCK_DESCRIPTION_MAX_LENGTH} caracteres.`
   }
+  return null
+}
+
+function timeFieldsError(values: BlockFormValues): string | null {
   const span = blockFormSpan(values)
   if (!span) return 'Ingresá horas válidas (HH:mm).'
   if (span.start >= span.end) return 'La hora de fin debe ser posterior al inicio (marcá "termina al día siguiente" si cruza la medianoche).'
   if (parseMinutes(values.actualMinutes) === null) return 'Los minutos reales deben ser un número entero mayor o igual a 0.'
   return null
+}
+
+/** Primer error del formulario, o `null` si se puede enviar. */
+export function blockFormError(values: BlockFormValues): string | null {
+  return textFieldsError(values) ?? timeFieldsError(values)
 }
 
 function formFields(values: BlockFormValues, base: Date) {
@@ -581,10 +644,17 @@ export function buildUpdateBlockPayload(values: BlockFormValues, base: Date): Up
   return { ...formFields(values, base), description: values.description.trim() || null }
 }
 
+const linkedTask = (block: TimeBlock | null, tasksById: ReadonlyMap<string, Task>) =>
+  block?.task_id ? tasksById.get(block.task_id) : undefined
+
+/** El bloque pasa a completado en este guardado y se eligió completar también su tarea. */
+const completesBlock = (block: TimeBlock | null, values: BlockFormValues) =>
+  values.isCompleted && !block?.is_completed && values.completeTask
+
 /** Se completa la tarea asociada si el bloque pasa a completado y se eligió hacerlo. */
 export function shouldCompleteTask(block: TimeBlock | null, values: BlockFormValues, tasksById: ReadonlyMap<string, Task>) {
-  const task = block?.task_id ? tasksById.get(block.task_id) : undefined
-  return Boolean(task && task.status === 'pending' && values.isCompleted && !block?.is_completed && values.completeTask)
+  const pending = linkedTask(block, tasksById)?.status === 'pending'
+  return Boolean(pending && completesBlock(block, values))
 }
 
 // ── Presentación ────────────────────────────────────────────
@@ -676,15 +746,24 @@ export const WORK_HOUR_OPTIONS = Array.from({ length: 25 }, (_, hour) => hour * 
 const validHours = (hours: Partial<WorkHours> | undefined): hours is WorkHours =>
   typeof hours?.start === 'number' && typeof hours.end === 'number' && hours.start >= 0 && hours.end <= DAY_MINUTES && hours.start < hours.end
 
+/** JSON guardado en `key`, o `null` si no hay nada. */
+function readStoredJson<T>(storage: Pick<Storage, 'getItem'>, key: string): T | null {
+  return JSON.parse(storage.getItem(key) ?? 'null') as T | null
+}
+
+/** Preferencias válidas a partir de lo guardado: cada valor desconocido vuelve al predeterminado. */
+function prefsFrom(saved: Partial<SchedulePrefs>): SchedulePrefs {
+  return {
+    mode: saved.mode === 'week' ? 'week' : 'day',
+    zoom: saved.zoom === 'work' ? 'work' : 'day',
+    workHours: validHours(saved.workHours) ? saved.workHours : DEFAULT_WORK_HOURS,
+    sidebarOpen: saved.sidebarOpen !== false,
+  }
+}
+
 export function loadSchedulePrefs(storage: Pick<Storage, 'getItem'> = window.localStorage): SchedulePrefs {
   try {
-    const parsed = JSON.parse(storage.getItem(PREFS_STORAGE_KEY) ?? 'null') as Partial<SchedulePrefs> | null
-    return {
-      mode: parsed?.mode === 'week' ? 'week' : 'day',
-      zoom: parsed?.zoom === 'work' ? 'work' : 'day',
-      workHours: validHours(parsed?.workHours) ? parsed.workHours : DEFAULT_WORK_HOURS,
-      sidebarOpen: parsed?.sidebarOpen !== false,
-    }
+    return prefsFrom(readStoredJson<Partial<SchedulePrefs>>(storage, PREFS_STORAGE_KEY) ?? {})
   } catch {
     return { ...DEFAULT_PREFS }
   }
@@ -726,11 +805,15 @@ export const focusTargetFor = (block: TimeBlock): FocusTarget => ({
   actualMinutes: block.actual_duration_minutes,
 })
 
+type SavedFocus = Partial<FocusTarget> & Pick<FocusTarget, 'blockId' | 'title'>
+
+const isSavedFocus = (saved: Partial<FocusTarget> | null): saved is SavedFocus =>
+  Boolean(saved?.blockId) && typeof saved?.title === 'string'
+
 export function loadFocusTarget(storage: Pick<Storage, 'getItem'> = window.localStorage): FocusTarget | null {
   try {
-    const parsed = JSON.parse(storage.getItem(FOCUS_STORAGE_KEY) ?? 'null') as Partial<FocusTarget> | null
-    if (!parsed?.blockId || typeof parsed.title !== 'string') return null
-    return { blockId: parsed.blockId, title: parsed.title, actualMinutes: Number(parsed.actualMinutes) || 0 }
+    const saved = readStoredJson<Partial<FocusTarget>>(storage, FOCUS_STORAGE_KEY)
+    return isSavedFocus(saved) ? { blockId: saved.blockId, title: saved.title, actualMinutes: Number(saved.actualMinutes) || 0 } : null
   } catch {
     return null
   }

@@ -1,14 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { isUUID } from 'class-validator';
 import { Repository } from 'typeorm';
+import { findOwnedOrFail } from '../common/owned-records';
 import { Account } from '../models/account.entity';
 import { AccountResponseDto } from '../dto/accounts/account-response.dto';
 import { CreateAccountDto } from '../dto/accounts/create-account.dto';
 import { UpdateAccountDto } from '../dto/accounts/update-account.dto';
 
-const NOT_FOUND_MESSAGE = 'Recurso no encontrado.';
+const toResponse = (row: Account) => AccountResponseDto.fromEntity(row);
+const active = { isActive: true };
+const oldestFirst = { createdAt: 'ASC' } as const;
 
+/** Cuentas del usuario. El borrado es lógico (`isActive = false`) y las inactivas no se ven. */
 @Injectable()
 export class AccountsService {
   constructor(
@@ -16,62 +19,35 @@ export class AccountsService {
     private readonly accounts: Repository<Account>,
   ) {}
 
-  async findAllForUser(userId: string): Promise<AccountResponseDto[]> {
-    const rows = await this.accounts.find({
-      where: { userId, isActive: true },
-      order: { createdAt: 'ASC' },
-    });
-    return rows.map((row) => AccountResponseDto.fromEntity(row));
+  async findAllForUser(userId: string) {
+    const rows = await this.accounts.find({ where: { userId, ...active }, order: oldestFirst });
+    return rows.map(toResponse);
   }
 
-  async create(userId: string, dto: CreateAccountDto): Promise<AccountResponseDto> {
+  async create(userId: string, dto: CreateAccountDto) {
     const entity = this.accounts.create({
       userId,
       name: dto.name,
       type: dto.type,
       balance: dto.initial_balance ?? 0,
     });
-    const saved = await this.accounts.save(entity);
-    return AccountResponseDto.fromEntity(saved);
+    return toResponse(await this.accounts.save(entity));
   }
 
-  async findOneForUser(userId: string, id: string): Promise<AccountResponseDto> {
-    const account = await this.findOwnedOrFail(userId, id);
-    return AccountResponseDto.fromEntity(account);
+  async findOneForUser(userId: string, id: string) {
+    return toResponse(await findOwnedOrFail(this.accounts, userId, id, active));
   }
 
-  async update(userId: string, id: string, dto: UpdateAccountDto): Promise<AccountResponseDto> {
-    const account = await this.findOwnedOrFail(userId, id);
+  async update(userId: string, id: string, dto: UpdateAccountDto) {
+    const account = await findOwnedOrFail(this.accounts, userId, id, active);
     account.name = dto.name;
     account.type = dto.type;
-    const saved = await this.accounts.save(account);
-    return AccountResponseDto.fromEntity(saved);
+    return toResponse(await this.accounts.save(account));
   }
 
   async remove(userId: string, id: string): Promise<void> {
-    const account = await this.findOwnedOrFail(userId, id);
+    const account = await findOwnedOrFail(this.accounts, userId, id, active);
     account.isActive = false;
     await this.accounts.save(account);
-  }
-
-  /**
-   * Aislamiento por usuario: cualquier operación por `id` filtra siempre por
-   * `userId`. Un `id` de otro usuario (o inexistente, o con formato inválido)
-   * responde `404` — nunca revela si el recurso existe para otro usuario.
-   */
-  private async findOwnedOrFail(userId: string, id: string): Promise<Account> {
-    if (!isUUID(id)) {
-      throw new NotFoundException(NOT_FOUND_MESSAGE);
-    }
-
-    const account = await this.accounts.findOne({
-      where: { id, userId, isActive: true },
-    });
-
-    if (!account) {
-      throw new NotFoundException(NOT_FOUND_MESSAGE);
-    }
-
-    return account;
   }
 }

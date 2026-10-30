@@ -7,21 +7,18 @@ from __future__ import annotations
 
 import decimal
 
-from sqlalchemy import Boolean, Numeric, String
+from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.session import Base
-from app.models.base import IdMixin, OwnedMixin, TimestampMixin
+from app.models.base import OwnedRecord, money_column
 
 
-class Account(IdMixin, OwnedMixin, TimestampMixin, Base):
+class Account(OwnedRecord):
     __tablename__ = "accounts"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
-    balance: Mapped[decimal.Decimal] = mapped_column(
-        Numeric(14, 2), nullable=False, server_default="0"
-    )
-    # Borrado lógico: DELETE /api/accounts/{id} marca is_active=False en lugar
-    # de eliminar la fila (preserva integridad referencial con transacciones).
+    balance: Mapped[decimal.Decimal] = money_column(nullable=False, server_default="0")
+    # borrado lógico: el DELETE marca `is_active=False` en lugar de eliminar la fila
+    # (preserva integridad referencial con transacciones).
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")

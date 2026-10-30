@@ -64,7 +64,9 @@ describe('lista', () => {
     visibleTasks(LIST, view({ sort: 'priority' }))
     expect(LIST).toEqual(copy)
   })
+})
 
+describe('lista', () => {
   it('mensaje de lista vacía según el filtro', () => {
     expect(emptyTasksMessage(view({ status: 'pending' }))).toContain('pendientes')
     expect(emptyTasksMessage(view({ status: 'completed' }))).toContain('completaste')
@@ -113,7 +115,9 @@ describe('formulario', () => {
     expect(canSubmitTask({ ...EMPTY_TASK_VALUES, title: 'Ok', dueDate: '2000-01-01T10:00' })).toBe(false)
     expect(canSubmitTask({ ...EMPTY_TASK_VALUES, title: 'Ok' })).toBe(true)
   })
+})
 
+describe('formulario', () => {
   it('arma el cuerpo recortando textos y omitiendo lo vacío', () => {
     expect(buildTaskPayload({ ...EMPTY_TASK_VALUES, title: ' Pagar ', priority: 'high' })).toEqual({
       title: 'Pagar',
@@ -132,7 +136,9 @@ describe('formulario', () => {
       estimated_minutes: 90,
     })
   })
+})
 
+describe('formulario', () => {
   it('valida la duración estimada (vacía o de 5 a 1440 min)', () => {
     const base = { ...EMPTY_TASK_VALUES, title: 'Ok' }
     expect(canSubmitTask({ ...base, estimatedMinutes: '45' })).toBe(true)

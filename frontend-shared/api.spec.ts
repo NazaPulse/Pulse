@@ -23,7 +23,7 @@ function httpError(status: number, data: unknown) {
 }
 
 describe('createApi', () => {
-  it('cada operación usa el método y la ruta de openapi.yaml', async () => {
+  it('auth y cuentas usan el método y la ruta de openapi.yaml', async () => {
     const { http, calls } = fakeHttp()
     const api = createApi(http)
     const body = { any: 'payload' }
@@ -33,12 +33,6 @@ describe('createApi', () => {
     await api.createAccount(body as never)
     await api.updateAccount('a1', body as never)
     await api.deleteAccount('a1')
-    await api.getCategories()
-    await api.createCategory(body as never)
-    await api.updateCategory('c1', body as never)
-    await api.deleteCategory('c1')
-    await api.createTransaction(body as never)
-    await api.getFinanceSummary()
     expect(calls).toEqual([
       ['post', '/api/auth/register', body],
       ['post', '/api/auth/login', body],
@@ -46,6 +40,22 @@ describe('createApi', () => {
       ['post', '/api/accounts', body],
       ['put', '/api/accounts/a1', body],
       ['delete', '/api/accounts/a1'],
+    ])
+  })
+})
+
+describe('createApi', () => {
+  it('sobres, transacciones y resumen usan el método y la ruta de openapi.yaml', async () => {
+    const { http, calls } = fakeHttp()
+    const api = createApi(http)
+    const body = { any: 'payload' }
+    await api.getCategories()
+    await api.createCategory(body as never)
+    await api.updateCategory('c1', body as never)
+    await api.deleteCategory('c1')
+    await api.createTransaction(body as never)
+    await api.getFinanceSummary()
+    expect(calls).toEqual([
       ['get', '/api/categories'],
       ['post', '/api/categories', body],
       ['put', '/api/categories/c1', body],
@@ -54,7 +64,9 @@ describe('createApi', () => {
       ['get', '/api/finances/summary'],
     ])
   })
+})
 
+describe('createApi', () => {
   it('devuelve el `data` de la respuesta y `void` en los borrados', async () => {
     const api = createApi(fakeHttp().http)
     await expect(api.getAccounts()).resolves.toBe('get-data')
@@ -94,7 +106,9 @@ describe('API de productividad', () => {
       ['delete', '/api/notes/n1'],
     ])
   })
+})
 
+describe('API de productividad', () => {
   it('uploadAudioNote envía multipart con timeout propio y nombre según el MIME', async () => {
     const { http, calls } = fakeHttp()
     const blob = new Blob(['x'], { type: 'audio/mp4;codecs=opus' })
