@@ -37,3 +37,5 @@ export class TimeBlockController {
     return this.schedule.remove(userId, id);
   }
 }
+
+export const SCHEDULE_CONTROLLERS = [ScheduleController, TimeBlockController];

@@ -103,17 +103,27 @@ def _sent_fields(dto, nullable: set[str]) -> dict:
     return {k: _plain(v) for k, v in fields.items() if v is not None or k in nullable}
 
 
+class Visibility:
+    """Reglas de lectura de una tabla: borrado lógico y orden de listado."""
+
+    def __init__(self, soft_delete: bool, newest_first: bool) -> None:
+        self.soft_delete = soft_delete
+        self.newest_first = newest_first
+
+    def sees(self, row: SimpleNamespace, user_id) -> bool:
+        return row.user_id == user_id and (not self.soft_delete or row.is_active)
+
+    def ordered(self, rows: list[SimpleNamespace]) -> list[SimpleNamespace]:
+        return sorted(rows, key=lambda r: r.created_at, reverse=self.newest_first)
+
+
 class RowTable:
     """Filas en memoria con el mismo aislamiento por usuario que los servicios reales: un `id`
     ajeno, inexistente o inválido responde 404 (con borrado lógico, las inactivas no se ven)."""
 
-    def __init__(self, soft_delete: bool, newest_first: bool) -> None:
+    def __init__(self, visibility: Visibility) -> None:
         self._rows: dict[uuid.UUID, SimpleNamespace] = {}
-        self._soft_delete = soft_delete
-        self._newest_first = newest_first
-
-    def _is_visible(self, row: SimpleNamespace, user_id) -> bool:
-        return row.user_id == user_id and (not self._soft_delete or row.is_active)
+        self._visibility = visibility
 
     def insert(self, user_id, **fields) -> SimpleNamespace:
         now = dt.datetime.now(tz=dt.timezone.utc)
@@ -122,20 +132,20 @@ class RowTable:
         return row
 
     def visible(self, user_id) -> list[SimpleNamespace]:
-        rows = [r for r in self._rows.values() if self._is_visible(r, user_id)]
-        return sorted(rows, key=lambda r: r.created_at, reverse=self._newest_first)
+        rows = [r for r in self._rows.values() if self._visibility.sees(r, user_id)]
+        return self._visibility.ordered(rows)
 
     def find(self, user_id, row_id) -> SimpleNamespace:
         try:
             row = self._rows.get(uuid.UUID(str(row_id)))
         except ValueError:
             row = None
-        if row is None or not self._is_visible(row, user_id):
+        if row is None or not self._visibility.sees(row, user_id):
             raise HTTPException(status_code=404, detail=_NOT_FOUND_MESSAGE)
         return row
 
     def delete(self, row: SimpleNamespace) -> None:
-        if self._soft_delete:
+        if self._visibility.soft_delete:
             _touch(row, is_active=False)
         else:
             del self._rows[row.id]
@@ -149,7 +159,7 @@ class FakeStore:
     to_schema: Callable = staticmethod(lambda row: row)
 
     def __init__(self) -> None:
-        self.table = RowTable(self.soft_delete, self.newest_first)
+        self.table = RowTable(Visibility(self.soft_delete, self.newest_first))
 
     def _insert(self, user_id, **fields):
         return self.to_schema(self.table.insert(user_id, **fields))
