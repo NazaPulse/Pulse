@@ -14,74 +14,77 @@ import { INSUFFICIENT_FUNDS_MESSAGE, TransactionsService } from './transactions.
  *  - income: suma el monto al saldo.
  *  - Cuenta/categoría de otro usuario o inexistente -> 404.
  */
-describe('TransactionsService', () => {
-  const OWNER_ID = '3f1a2b4c-5d6e-7f80-9a1b-2c3d4e5f6071';
-  const ACCOUNT_ID = '7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f';
-  const CATEGORY_ID = '3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b';
-  const NOW = new Date('2026-09-02T18:31:00.000Z');
+const OWNER_ID = '3f1a2b4c-5d6e-7f80-9a1b-2c3d4e5f6071';
 
-  const buildAccount = (balance: number): Account =>
-    Object.assign(new Account(), {
-      id: ACCOUNT_ID,
-      userId: OWNER_ID,
-      name: 'Cuenta',
-      type: AccountType.BANK,
-      balance,
-      isActive: true,
-    });
+const ACCOUNT_ID = '7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f';
 
-  const category = Object.assign(new Category(), { id: CATEGORY_ID, userId: OWNER_ID });
+const CATEGORY_ID = '3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b';
 
-  const expenseDto: CreateTransactionDto = {
-    amount: 120.75,
-    type: TransactionType.EXPENSE,
-    account_id: ACCOUNT_ID,
-    category_id: CATEGORY_ID,
-    date: '2026-09-02T18:30:00.000Z',
-    description: 'Compra semanal',
-  };
+const NOW = new Date('2026-09-02T18:31:00.000Z');
 
-  let manager: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
-  let runner: {
-    manager: typeof manager;
-    connect: jest.Mock;
-    startTransaction: jest.Mock;
-    commitTransaction: jest.Mock;
-    rollbackTransaction: jest.Mock;
-    release: jest.Mock;
-  };
-  let service: TransactionsService;
-
-  beforeEach(() => {
-    manager = {
-      findOne: jest.fn(),
-      create: jest.fn((_entity: unknown, data: Partial<Transaction>) => Object.assign(new Transaction(), data)),
-      save: jest.fn((_entity: unknown, data: Account | Transaction) =>
-        Promise.resolve(
-          data instanceof Transaction
-            ? Object.assign(data, { id: '9a8b7c6d-5e4f-4a3b-9c2d-1e0f2a3b4c5d', createdAt: NOW, updatedAt: NOW })
-            : data,
-        ),
-      ),
-    };
-    runner = {
-      manager,
-      connect: jest.fn(),
-      startTransaction: jest.fn(),
-      commitTransaction: jest.fn(),
-      rollbackTransaction: jest.fn(),
-      release: jest.fn(),
-    };
-    const dataSource = { createQueryRunner: () => runner } as unknown as DataSource;
-    service = new TransactionsService(dataSource, {} as Repository<Transaction>);
+const buildAccount = (balance: number): Account =>
+  Object.assign(new Account(), {
+    id: ACCOUNT_ID,
+    userId: OWNER_ID,
+    name: 'Cuenta',
+    type: AccountType.BANK,
+    balance,
+    isActive: true,
   });
 
-  const mockLookups = (account: Account | null, cat: Category | null = category) => {
-    manager.findOne.mockImplementation((entity: unknown) =>
-      Promise.resolve(entity === Account ? account : cat),
-    );
-  };
+const category = Object.assign(new Category(), { id: CATEGORY_ID, userId: OWNER_ID });
 
+const expenseDto: CreateTransactionDto = {
+  amount: 120.75,
+  type: TransactionType.EXPENSE,
+  account_id: ACCOUNT_ID,
+  category_id: CATEGORY_ID,
+  date: '2026-09-02T18:30:00.000Z',
+  description: 'Compra semanal',
+};
+
+let manager: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
+
+let runner: {
+  manager: typeof manager;
+  connect: jest.Mock;
+  startTransaction: jest.Mock;
+  commitTransaction: jest.Mock;
+  rollbackTransaction: jest.Mock;
+  release: jest.Mock;
+};
+
+let service: TransactionsService;
+
+beforeEach(() => {
+  manager = {
+    findOne: jest.fn(),
+    create: jest.fn((_entity: unknown, data: Partial<Transaction>) => Object.assign(new Transaction(), data)),
+    save: jest.fn((_entity: unknown, data: Account | Transaction) =>
+      Promise.resolve(
+        data instanceof Transaction
+          ? Object.assign(data, { id: '9a8b7c6d-5e4f-4a3b-9c2d-1e0f2a3b4c5d', createdAt: NOW, updatedAt: NOW })
+          : data,
+      ),
+    ),
+  };
+  runner = {
+    manager,
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+  };
+  const dataSource = { createQueryRunner: () => runner } as unknown as DataSource;
+  service = new TransactionsService(dataSource, {} as Repository<Transaction>);
+});
+
+const mockLookups = (account: Account | null, cat: Category | null = category) => {
+  manager.findOne.mockImplementation((entity: unknown) => Promise.resolve(entity === Account ? account : cat));
+};
+
+describe('TransactionsService', () => {
   it('expense: descuenta el saldo, inserta y confirma la transacción', async () => {
     const account = buildAccount(500);
     mockLookups(account);
@@ -103,7 +106,9 @@ describe('TransactionsService', () => {
       }),
     );
   });
+});
 
+describe('TransactionsService', () => {
   it('expense: filtra la cuenta por usuario activo con lock de escritura', async () => {
     mockLookups(buildAccount(500));
 
@@ -131,7 +136,9 @@ describe('TransactionsService', () => {
     expect(runner.commitTransaction).not.toHaveBeenCalled();
     expect(runner.release).toHaveBeenCalled();
   });
+});
 
+describe('TransactionsService', () => {
   it('categoría inexistente o de otro usuario -> 404 y ROLLBACK', async () => {
     const account = buildAccount(500);
     mockLookups(account, null);
@@ -159,7 +166,9 @@ describe('TransactionsService', () => {
     expect(runner.rollbackTransaction).toHaveBeenCalled();
     expect(runner.commitTransaction).not.toHaveBeenCalled();
   });
+});
 
+describe('TransactionsService', () => {
   it('income sin categoría: suma el monto al saldo y guarda category_id null', async () => {
     const account = buildAccount(100);
     mockLookups(account);

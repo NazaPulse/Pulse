@@ -1,21 +1,52 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { isUUID } from 'class-validator';
 import { FindOptionsWhere, LessThan, MoreThan, Repository } from 'typeorm';
+import {
+  assertNotEmptyUpdate,
+  assertOwned,
+  findOwnedOrFail,
+  pickDefined,
+  pickPresent,
+  toDate,
+} from '../common/owned-records';
 import { CreateTimeBlockDto } from '../dto/schedule/create-time-block.dto';
 import { ListScheduleQueryDto } from '../dto/schedule/list-schedule-query.dto';
 import { TimeBlockResponseDto } from '../dto/schedule/time-block-response.dto';
 import { UpdateTimeBlockDto } from '../dto/schedule/update-time-block.dto';
 import { Task } from '../models/task.entity';
 import { TimeBlock, TimeBlockCategory } from '../models/time-block.entity';
-import { EMPTY_UPDATE_MESSAGE } from './tasks.service';
 
-const NOT_FOUND_MESSAGE = 'Recurso no encontrado.';
 export const INVALID_RANGE_MESSAGE = 'start_time debe ser anterior a end_time.';
 
-function isPresent<T>(value: T | null | undefined): value is T {
-  return value !== undefined && value !== null;
+const toResponse = (row: TimeBlock) => TimeBlockResponseDto.fromEntity(row);
+
+/** Valores de un bloque nuevo para los campos que el cliente no envía. */
+const BLOCK_DEFAULTS = {
+  description: null,
+  actualDurationMinutes: 0,
+  category: TimeBlockCategory.OTHER,
+  taskId: null,
+  isCompleted: false,
+};
+
+/** Columnas de un bloque nuevo: lo enviado por el cliente sobre {@link BLOCK_DEFAULTS}. */
+function newBlock(userId: string, dto: CreateTimeBlockDto, range: { startTime: Date; endTime: Date }) {
+  return {
+    userId,
+    ...BLOCK_DEFAULTS,
+    ...pickPresent({
+      title: dto.title,
+      description: dto.description,
+      actualDurationMinutes: dto.actual_duration_minutes,
+      category: dto.category,
+      taskId: dto.task_id,
+      isCompleted: dto.is_completed,
+    }),
+    ...range,
+  };
 }
+
+const byStartTime = { startTime: 'ASC' } as const;
 
 function assertValidRange(start: Date, end: Date): void {
   if (start.getTime() >= end.getTime()) {
@@ -23,21 +54,34 @@ function assertValidRange(start: Date, end: Date): void {
   }
 }
 
-/** Campos NOT NULL: un `null` explícito se ignora (igual que el Backend B). */
-function applyRequiredFields(block: TimeBlock, dto: UpdateTimeBlockDto): void {
-  if (isPresent(dto.title)) block.title = dto.title;
-  if (isPresent(dto.start_time)) block.startTime = new Date(dto.start_time);
-  if (isPresent(dto.end_time)) block.endTime = new Date(dto.end_time);
-  if (isPresent(dto.actual_duration_minutes)) block.actualDurationMinutes = dto.actual_duration_minutes;
-  if (isPresent(dto.category)) block.category = dto.category;
-  if (isPresent(dto.is_completed)) block.isCompleted = dto.is_completed;
+/** Bloques del usuario que se superponen con `[from, to)`. */
+function overlapFilters(userId: string, query: ListScheduleQueryDto): FindOptionsWhere<TimeBlock> {
+  const where: FindOptionsWhere<TimeBlock> = { userId };
+  if (query.from) where.endTime = MoreThan(new Date(query.from));
+  if (query.to) where.startTime = LessThan(new Date(query.to));
+  return where;
 }
 
-function applyNullableFields(block: TimeBlock, dto: UpdateTimeBlockDto): void {
-  if (dto.description !== undefined) block.description = dto.description;
-  if (dto.task_id !== undefined) block.taskId = dto.task_id;
+/** Cambios de un PATCH: los campos NOT NULL ignoran un `null` explícito (igual que el Backend B). */
+function blockChanges(dto: UpdateTimeBlockDto): Partial<TimeBlock> {
+  return {
+    ...pickPresent({
+      title: dto.title,
+      startTime: toDate(dto.start_time),
+      endTime: toDate(dto.end_time),
+      actualDurationMinutes: dto.actual_duration_minutes,
+      category: dto.category,
+      isCompleted: dto.is_completed,
+    }),
+    ...pickDefined({ description: dto.description, taskId: dto.task_id }),
+  };
 }
 
+/**
+ * Cronograma del usuario, por `start_time` ascendente. `start_time < end_time` (si no, `400`);
+ * en un PATCH el rango se valida combinando lo enviado con lo guardado. Una tarea vinculada de
+ * otro usuario (o inexistente) responde `404`, igual que un bloque ajeno.
+ */
 @Injectable()
 export class ScheduleService {
   constructor(
@@ -47,80 +91,32 @@ export class ScheduleService {
     private readonly tasks: Repository<Task>,
   ) {}
 
-  /** Bloques del usuario que se superponen con `[from, to)`, por `start_time` ascendente. */
-  async findAllForUser(userId: string, query: ListScheduleQueryDto = {}): Promise<TimeBlockResponseDto[]> {
-    const where: FindOptionsWhere<TimeBlock> = { userId };
-    if (query.from) where.endTime = MoreThan(new Date(query.from));
-    if (query.to) where.startTime = LessThan(new Date(query.to));
-
-    const rows = await this.blocks.find({ where, order: { startTime: 'ASC' } });
-    return rows.map((row) => TimeBlockResponseDto.fromEntity(row));
+  async findAllForUser(userId: string, query: ListScheduleQueryDto = {}) {
+    const rows = await this.blocks.find({ where: overlapFilters(userId, query), order: byStartTime });
+    return rows.map(toResponse);
   }
 
-  async create(userId: string, dto: CreateTimeBlockDto): Promise<TimeBlockResponseDto> {
+  async create(userId: string, dto: CreateTimeBlockDto) {
     const startTime = new Date(dto.start_time);
     const endTime = new Date(dto.end_time);
     assertValidRange(startTime, endTime);
-    if (dto.task_id) await this.assertOwnedTask(userId, dto.task_id);
+    if (dto.task_id) await assertOwned(this.tasks, userId, dto.task_id);
 
-    const entity = this.blocks.create({
-      userId,
-      title: dto.title,
-      description: dto.description ?? null,
-      startTime,
-      endTime,
-      actualDurationMinutes: dto.actual_duration_minutes ?? 0,
-      category: dto.category ?? TimeBlockCategory.OTHER,
-      taskId: dto.task_id ?? null,
-      isCompleted: dto.is_completed ?? false,
-    });
-    const saved = await this.blocks.save(entity);
-    return TimeBlockResponseDto.fromEntity(saved);
+    const entity = this.blocks.create(newBlock(userId, dto, { startTime, endTime }));
+    return toResponse(await this.blocks.save(entity));
   }
 
-  /** Edición parcial: el rango se valida combinando lo enviado con lo guardado. */
-  async update(userId: string, id: string, dto: UpdateTimeBlockDto): Promise<TimeBlockResponseDto> {
-    if (Object.values(dto).every((value) => value === undefined)) {
-      throw new BadRequestException(EMPTY_UPDATE_MESSAGE);
-    }
-
-    const block = await this.findOwnedOrFail(userId, id);
-    applyRequiredFields(block, dto);
-    applyNullableFields(block, dto);
+  async update(userId: string, id: string, dto: UpdateTimeBlockDto) {
+    assertNotEmptyUpdate(dto);
+    const block = await findOwnedOrFail(this.blocks, userId, id);
+    Object.assign(block, blockChanges(dto));
     assertValidRange(block.startTime, block.endTime);
-    if (dto.task_id) await this.assertOwnedTask(userId, dto.task_id);
-
-    const saved = await this.blocks.save(block);
-    return TimeBlockResponseDto.fromEntity(saved);
+    if (dto.task_id) await assertOwned(this.tasks, userId, dto.task_id);
+    return toResponse(await this.blocks.save(block));
   }
 
   async remove(userId: string, id: string): Promise<void> {
-    const block = await this.findOwnedOrFail(userId, id);
+    const block = await findOwnedOrFail(this.blocks, userId, id);
     await this.blocks.remove(block);
-  }
-
-  /** Una tarea de otro usuario (o inexistente) responde `404`, igual que un bloque ajeno. */
-  private async assertOwnedTask(userId: string, taskId: string): Promise<void> {
-    const exists = await this.tasks.exists({ where: { id: taskId, userId } });
-    if (!exists) {
-      throw new NotFoundException(NOT_FOUND_MESSAGE);
-    }
-  }
-
-  /**
-   * Aislamiento por usuario: un `id` de otro usuario (o inexistente, o con
-   * formato inválido) responde `404` — nunca revela si existe para otro.
-   */
-  private async findOwnedOrFail(userId: string, id: string): Promise<TimeBlock> {
-    if (!isUUID(id)) {
-      throw new NotFoundException(NOT_FOUND_MESSAGE);
-    }
-
-    const block = await this.blocks.findOne({ where: { id, userId } });
-    if (!block) {
-      throw new NotFoundException(NOT_FOUND_MESSAGE);
-    }
-
-    return block;
   }
 }

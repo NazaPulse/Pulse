@@ -28,7 +28,9 @@ describe('useSubmission', () => {
     expect(error.value).toBe('La solicitud tardó demasiado.')
     expect(submitting.value).toBe(false)
   })
+})
 
+describe('useSubmission', () => {
   it('error que no es de Axios: usa el fallback', async () => {
     const { error, submit } = useSubmission('No se pudo guardar.')
     await submit(async () => {

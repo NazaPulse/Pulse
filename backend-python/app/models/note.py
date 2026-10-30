@@ -8,11 +8,10 @@ from __future__ import annotations
 from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.session import Base
-from app.models.base import IdMixin, OwnedMixin, TimestampMixin
+from app.models.base import OwnedRecord
 
 
-class Note(IdMixin, OwnedMixin, TimestampMixin, Base):
+class Note(OwnedRecord):
     __tablename__ = "notes"
 
     title: Mapped[str] = mapped_column(String(200), nullable=False)

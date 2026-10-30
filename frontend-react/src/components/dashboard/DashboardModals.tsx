@@ -11,8 +11,9 @@ interface DashboardModalsProps {
   modals: DashboardModalsState
 }
 
-export function DashboardModals({ data, modals }: DashboardModalsProps) {
-  const { accountModal, categoryModal, deleteTarget } = modals
+/** Altas y ediciones de cuentas y sobres. */
+function FinanceFormModals({ modals }: Pick<DashboardModalsProps, 'modals'>) {
+  const { accountModal, categoryModal } = modals
   return (
     <>
       {accountModal ? (
@@ -30,6 +31,15 @@ export function DashboardModals({ data, modals }: DashboardModalsProps) {
           onSubmit={modals.submitCategory}
         />
       ) : null}
+    </>
+  )
+}
+
+export function DashboardModals({ data, modals }: DashboardModalsProps) {
+  const { deleteTarget } = modals
+  return (
+    <>
+      <FinanceFormModals modals={modals} />
 
       {modals.transactionModalOpen ? (
         <TransactionFormModal

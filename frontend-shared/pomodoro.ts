@@ -66,18 +66,27 @@ export const INITIAL_TIMER_STATE: TimerState = {
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>
 
+function readSavedTimer(storage: Pick<Storage, 'getItem'>): Partial<TimerState> | null {
+  const raw = storage.getItem(STORAGE_KEY)
+  return raw ? (JSON.parse(raw) as Partial<TimerState>) : null
+}
+
+const isKnownMode = (mode: PomodoroMode | undefined): mode is PomodoroMode => Boolean(mode) && (mode as string) in MODE_DURATIONS_MS
+
+function timerStateFrom(saved: Partial<TimerState> & Pick<TimerState, 'mode'>): TimerState {
+  return {
+    mode: saved.mode,
+    accumulatedMs: Number(saved.accumulatedMs) || 0,
+    startedAt: typeof saved.startedAt === 'number' ? saved.startedAt : null,
+    completedWorkSessions: Number(saved.completedWorkSessions) || 0,
+  }
+}
+
 /** Lee el estado guardado; cualquier dato inválido o storage no disponible vuelve al inicial. */
 export function loadTimerState(storage: Pick<Storage, 'getItem'> = window.localStorage): TimerState {
   try {
-    const raw = storage.getItem(STORAGE_KEY)
-    const parsed = raw ? (JSON.parse(raw) as Partial<TimerState>) : null
-    if (!parsed?.mode || !(parsed.mode in MODE_DURATIONS_MS)) return { ...INITIAL_TIMER_STATE }
-    return {
-      mode: parsed.mode,
-      accumulatedMs: Number(parsed.accumulatedMs) || 0,
-      startedAt: typeof parsed.startedAt === 'number' ? parsed.startedAt : null,
-      completedWorkSessions: Number(parsed.completedWorkSessions) || 0,
-    }
+    const saved = readSavedTimer(storage)
+    return isKnownMode(saved?.mode) ? timerStateFrom({ ...saved, mode: saved.mode }) : { ...INITIAL_TIMER_STATE }
   } catch {
     return { ...INITIAL_TIMER_STATE }
   }

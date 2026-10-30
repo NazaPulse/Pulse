@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { NOT_FOUND_MESSAGE } from '../common/owned-records';
 import { Account } from '../models/account.entity';
 import { Category } from '../models/category.entity';
 import { CreateTransactionDto } from '../dto/transactions/create-transaction.dto';
@@ -8,9 +9,32 @@ import { ListTransactionsQueryDto } from '../dto/transactions/list-transactions-
 import { TransactionResponseDto } from '../dto/transactions/transaction-response.dto';
 import { Transaction, TransactionType } from '../models/transaction.entity';
 
-const NOT_FOUND_MESSAGE = 'Recurso no encontrado.';
 export const INSUFFICIENT_FUNDS_MESSAGE = 'Saldo insuficiente en la cuenta';
 
+const toResponse = (row: Transaction) => TransactionResponseDto.fromEntity(row);
+const newestFirst = { date: 'DESC', createdAt: 'DESC' } as const;
+
+/** Filtros opcionales del historial (siempre acotado al usuario). */
+function transactionFilters(userId: string, query: ListTransactionsQueryDto): FindOptionsWhere<Transaction> {
+  const where: FindOptionsWhere<Transaction> = { userId };
+  if (query.account_id) where.accountId = query.account_id;
+  if (query.category_id) where.categoryId = query.category_id;
+  if (query.type) where.type = query.type;
+  return where;
+}
+
+/**
+ * Historial y alta de movimientos.
+ *
+ * `create` aplica la lógica de doble impacto (Issue #13). Todo ocurre en una única transacción
+ * de base de datos: validar la cuenta (con lock de fila para evitar carreras sobre `balance`),
+ * validar la categoría, ajustar el saldo e insertar el movimiento. Ante cualquier error se hace
+ * ROLLBACK y la cuenta no cambia.
+ *
+ * La "ejecución" de cada sobre no tiene columna propia en `categories`: se deriva de la suma de
+ * sus egresos (ver `FinancesService.getSummary`), por lo que queda consistente al confirmarse
+ * este mismo INSERT.
+ */
 @Injectable()
 export class TransactionsService {
   constructor(
@@ -19,33 +43,12 @@ export class TransactionsService {
     private readonly transactions: Repository<Transaction>,
   ) {}
 
-  async findAllForUser(
-    userId: string,
-    query: ListTransactionsQueryDto,
-  ): Promise<TransactionResponseDto[]> {
-    const where: FindOptionsWhere<Transaction> = { userId };
-    if (query.account_id) where.accountId = query.account_id;
-    if (query.category_id) where.categoryId = query.category_id;
-    if (query.type) where.type = query.type;
-
-    const rows = await this.transactions.find({
-      where,
-      order: { date: 'DESC', createdAt: 'DESC' },
-    });
-    return rows.map((row) => TransactionResponseDto.fromEntity(row));
+  async findAllForUser(userId: string, query: ListTransactionsQueryDto) {
+    const rows = await this.transactions.find({ where: transactionFilters(userId, query), order: newestFirst });
+    return rows.map(toResponse);
   }
 
-  /**
-   * Lógica de doble impacto (Issue #13). Todo ocurre en una única transacción
-   * de base de datos: validar la cuenta (con lock de fila para evitar carreras
-   * sobre `balance`), validar la categoría, ajustar el saldo e insertar el
-   * movimiento. Ante cualquier error se hace ROLLBACK y la cuenta no cambia.
-   *
-   * La "ejecución" de cada sobre no tiene columna propia en `categories`: se
-   * deriva de la suma de sus egresos (ver `FinancesService.getSummary`), por lo
-   * que queda consistente al confirmarse este mismo INSERT.
-   */
-  async create(userId: string, dto: CreateTransactionDto): Promise<TransactionResponseDto> {
+  async create(userId: string, dto: CreateTransactionDto) {
     const runner = this.dataSource.createQueryRunner();
     await runner.connect();
     await runner.startTransaction();
@@ -53,7 +56,7 @@ export class TransactionsService {
     try {
       const saved = await stageTransaction(runner.manager, userId, dto);
       await runner.commitTransaction();
-      return TransactionResponseDto.fromEntity(saved);
+      return toResponse(saved);
     } catch (error) {
       await runner.rollbackTransaction();
       throw error;

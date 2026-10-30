@@ -7,6 +7,26 @@ interface CategoryColorFieldProps {
   onChange: (value: string) => void
 }
 
+function HexInput(props: CategoryColorFieldProps & { valid: boolean }) {
+  const { value, onChange } = props
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={props.disabled}
+      placeholder="#6B7280"
+      maxLength={7}
+      className={[
+        'w-full rounded-lg border bg-canvas/60 px-3.5 py-2.5 text-fg outline-none transition',
+        'focus:ring-2 focus:ring-accent/30 focus:border-accent',
+        'disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-fg-dim',
+        props.valid ? 'border-line-strong' : 'border-danger-soft',
+      ].join(' ')}
+    />
+  )
+}
+
 export function CategoryColorField({ value, disabled, onChange }: CategoryColorFieldProps) {
   const valid = isValidHexColor(value)
   return (
@@ -23,20 +43,7 @@ export function CategoryColorField({ value, disabled, onChange }: CategoryColorF
           disabled={disabled}
           className="h-10 w-14 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-surface p-1"
         />
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          placeholder="#6B7280"
-          maxLength={7}
-          className={[
-            'w-full rounded-lg border bg-canvas/60 px-3.5 py-2.5 text-fg outline-none transition',
-            'focus:ring-2 focus:ring-accent/30 focus:border-accent',
-            'disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-fg-dim',
-            valid ? 'border-line-strong' : 'border-danger-soft',
-          ].join(' ')}
-        />
+        <HexInput value={value} disabled={disabled} onChange={onChange} valid={valid} />
       </div>
       {!valid ? <p className="text-xs text-danger-soft">Formato esperado: #RRGGBB</p> : null}
     </div>

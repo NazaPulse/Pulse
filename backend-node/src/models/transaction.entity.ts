@@ -1,4 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Field } from '../common/decorators/field.decorator';
 import { OwnedEntity, MoneyColumn } from './base.entity';
 import { Account } from './account.entity';
 import { Category } from './category.entity';
@@ -7,6 +8,24 @@ export enum TransactionType {
   INCOME = 'income',
   EXPENSE = 'expense',
 }
+
+/** Columnas y relaciones de la tabla. */
+const columns = {
+  accountId: Column({ name: 'account_id', type: 'uuid' }),
+  account: Field(
+    ManyToOne(() => Account, { onDelete: 'CASCADE' }),
+    JoinColumn({ name: 'account_id' }),
+  ),
+  categoryId: Column({ name: 'category_id', type: 'uuid', nullable: true }),
+  category: Field(
+    ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' }),
+    JoinColumn({ name: 'category_id' }),
+  ),
+  amount: MoneyColumn(),
+  type: Column({ type: 'varchar', length: 20 }),
+  date: Column({ type: 'timestamptz' }),
+  description: Column({ type: 'varchar', length: 255, nullable: true }),
+};
 
 /**
  * Mapea la tabla `transactions` (init.sql, raíz del repo).
@@ -17,29 +36,27 @@ export enum TransactionType {
  */
 @Entity({ name: 'transactions' })
 export class Transaction extends OwnedEntity {
-  @Column({ name: 'account_id', type: 'uuid' })
+  @columns.accountId
   accountId!: string;
 
-  @ManyToOne(() => Account, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'account_id' })
+  @columns.account
   account?: Account;
 
-  @Column({ name: 'category_id', type: 'uuid', nullable: true })
+  @columns.categoryId
   categoryId!: string | null;
 
-  @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'category_id' })
+  @columns.category
   category?: Category | null;
 
-  @MoneyColumn()
+  @columns.amount
   amount!: number;
 
-  @Column({ type: 'varchar', length: 20 })
+  @columns.type
   type!: TransactionType;
 
-  @Column({ type: 'timestamptz' })
+  @columns.date
   date!: Date;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @columns.description
   description!: string | null;
 }

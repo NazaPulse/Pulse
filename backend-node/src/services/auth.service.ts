@@ -1,15 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { QueryFailedError } from 'typeorm';
 import { User } from '../models/user.entity';
 import { UsersService } from './users.service';
 import { LoginDto } from '../dto/auth/login.dto';
-import { LoginResponseDto } from '../dto/auth/login-response.dto';
 import { RegisterDto } from '../dto/auth/register.dto';
 import { UserPublicDto } from '../dto/auth/user-public.dto';
 import { HashingService } from './hashing/hashing.service';
@@ -23,10 +17,7 @@ function normalizeEmail(email: string): string {
 }
 
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    err instanceof QueryFailedError &&
-    (err.driverError as { code?: string }).code === PG_UNIQUE_VIOLATION
-  );
+  return err instanceof QueryFailedError && (err.driverError as { code?: string }).code === PG_UNIQUE_VIOLATION;
 }
 
 interface JwtPayload {
@@ -34,6 +25,57 @@ interface JwtPayload {
   email: string;
 }
 
+/** `400` si el email ya está registrado. */
+async function assertEmailAvailable(users: UsersService, email: string): Promise<void> {
+  if (await users.existsByEmail(email)) {
+    throw new BadRequestException(EMAIL_TAKEN_MESSAGE);
+  }
+}
+
+async function createUser(users: UsersService, data: Pick<User, 'email' | 'passwordHash' | 'fullName'>): Promise<User> {
+  try {
+    return await users.create(data);
+  } catch (err) {
+    // Carrera entre el existsByEmail y el INSERT: la constraint UNIQUE gana.
+    if (isUniqueViolation(err)) {
+      throw new BadRequestException(EMAIL_TAKEN_MESSAGE);
+    }
+    throw err;
+  }
+}
+
+/** Usuario con esas credenciales; `401` con mensaje genérico en cualquier otro caso. */
+async function authenticate(users: UsersService, hashing: HashingService, dto: LoginDto): Promise<User> {
+  const user = await users.findByEmail(normalizeEmail(dto.email));
+  if (!user) {
+    // Igual coste aproximado que una verificación real para no filtrar
+    // por tiempo si el email existe o no.
+    await hashing.hash(dto.password).catch(() => undefined);
+    throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+  }
+
+  const ok = await hashing.verify(user.passwordHash, dto.password);
+  if (!ok) {
+    throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+  }
+  return user;
+}
+
+const rehashWarning = (userId: string, err: unknown) =>
+  `No se pudo re-hashear al usuario ${userId}: ${(err as Error).message}`;
+
+const tokenPayload = (user: User): JwtPayload => ({ sub: user.id, email: user.email });
+
+/**
+ * Registro e inicio de sesión.
+ *
+ * - RF-01 — Registro: hashea con Argon2id y persiste. `201` en éxito; `400` si el email ya
+ *   existe o el payload es inválido (validación en el pipe).
+ * - RF-02 — Login: `200` con `{ access_token }` si las credenciales son válidas; `401` con
+ *   mensaje genérico en cualquier otro caso. Si los parámetros del hash almacenado quedaron por
+ *   debajo de la política vigente se re-hashea de forma transparente (openapi.yaml · "rehash on
+ *   login").
+ */
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -44,73 +86,28 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  /**
-   * RF-01 — Registro. Hashea con Argon2id y persiste. `201` en éxito;
-   * `400` si el email ya existe o el payload es inválido (validación en el pipe).
-   */
-  async register(dto: RegisterDto): Promise<UserPublicDto> {
+  async register(dto: RegisterDto) {
     const email = normalizeEmail(dto.email);
-    if (await this.users.existsByEmail(email)) {
-      throw new BadRequestException(EMAIL_TAKEN_MESSAGE);
-    }
+    await assertEmailAvailable(this.users, email);
 
     const passwordHash = await this.hashing.hash(dto.password);
-    const user = await this.createUser(email, passwordHash, dto.full_name ?? null);
+    const user = await createUser(this.users, { email, passwordHash, fullName: dto.full_name ?? null });
     return UserPublicDto.fromEntity(user);
   }
 
-  /**
-   * RF-02 — Login. `200` con { access_token } si las credenciales son válidas;
-   * `401` con mensaje genérico en cualquier otro caso.
-   */
-  async login(dto: LoginDto): Promise<LoginResponseDto> {
-    const user = await this.authenticate(dto);
-    await this.rehashIfNeeded(user, dto.password);
-
-    const payload: JwtPayload = { sub: user.id, email: user.email };
-    const accessToken = await this.jwt.signAsync(payload);
-    return { access_token: accessToken };
+  async login(dto: LoginDto) {
+    const user = await authenticate(this.users, this.hashing, dto);
+    await this.rehashIfNeeded(user.id, user.passwordHash, dto.password);
+    return { access_token: await this.jwt.signAsync(tokenPayload(user)) };
   }
 
-  private async createUser(email: string, passwordHash: string, fullName: string | null): Promise<User> {
-    try {
-      return await this.users.create({ email, passwordHash, fullName });
-    } catch (err) {
-      // Carrera entre el existsByEmail y el INSERT: la constraint UNIQUE gana.
-      if (isUniqueViolation(err)) {
-        throw new BadRequestException(EMAIL_TAKEN_MESSAGE);
-      }
-      throw err;
-    }
-  }
-
-  private async authenticate(dto: LoginDto): Promise<User> {
-    const user = await this.users.findByEmail(normalizeEmail(dto.email));
-    if (!user) {
-      // Igual coste aproximado que una verificación real para no filtrar
-      // por tiempo si el email existe o no.
-      await this.hashing.hash(dto.password).catch(() => undefined);
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
-    }
-
-    const ok = await this.hashing.verify(user.passwordHash, dto.password);
-    if (!ok) {
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
-    }
-    return user;
-  }
-
-  /**
-   * Rehash transparente si los parámetros almacenados quedaron por debajo
-   * de la política vigente (openapi.yaml · "rehash on login").
-   */
-  private async rehashIfNeeded(user: User, password: string): Promise<void> {
-    if (!this.hashing.needsRehash(user.passwordHash)) return;
+  private async rehashIfNeeded(userId: string, storedHash: string, password: string): Promise<void> {
+    if (!this.hashing.needsRehash(storedHash)) return;
     try {
       const fresh = await this.hashing.hash(password);
-      await this.users.updatePasswordHash(user.id, fresh);
+      await this.users.updatePasswordHash(userId, fresh);
     } catch (err) {
-      this.logger.warn(`No se pudo re-hashear al usuario ${user.id}: ${(err as Error).message}`);
+      this.logger.warn(rehashWarning(userId, err));
     }
   }
 }

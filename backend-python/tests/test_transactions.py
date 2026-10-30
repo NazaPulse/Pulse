@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import decimal
 import uuid
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -27,6 +28,7 @@ from app.schemas.transaction import (
 )
 from app.services import transactions as transactions_service
 from app.services.transactions import INSUFFICIENT_FUNDS_MESSAGE
+from tests.helpers import auth_headers
 
 ACCOUNT_ID = "7b2f9e10-1c3a-4b5d-8e6f-2a3b4c5d6e7f"
 CATEGORY_ID = "3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b"
@@ -42,58 +44,68 @@ EXPENSE = {
 }
 
 
-def auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
-
-
 # ── Endpoints ────────────────────────────────────────────────────────────────
+
+
+class StubTransactions:
+    def __init__(self, calls: dict[str, object]) -> None:
+        self.calls = calls
+
+    def list_for_user(self, db, user_id, filters):
+        self.calls["list"] = (user_id, filters)
+        return []
+
+    def create(self, db, user_id, dto):
+        self.calls["create"] = (user_id, dto)
+        return TransactionSchema(
+            id=str(uuid.uuid4()),
+            amount=dto.amount,
+            type=dto.type,
+            account_id=dto.account_id,
+            category_id=dto.category_id,
+            date=dto.date,
+            description=dto.description,
+            created_at="2026-09-02T18:31:00.000Z",
+            updated_at="2026-09-02T18:31:00.000Z",
+        )
+
+
+class StubFinances:
+    def __init__(self, calls: dict[str, object]) -> None:
+        self.calls = calls
+
+    def get_summary(self, db, user_id):
+        self.calls["summary"] = user_id
+        return FinancesSummary(
+            total_balance=18609.75,
+            total_income=3500,
+            total_expenses=200,
+            by_category=[
+                CategorySummary(
+                    category_id=CATEGORY_ID,
+                    category_name="Supermercado",
+                    icon="shopping-cart",
+                    color="#FF5733",
+                    total_amount=150,
+                    percentage=75,
+                )
+            ],
+        )
 
 
 @pytest.fixture
 def stub_services(monkeypatch):
     calls: dict[str, object] = {}
-
-    class StubTransactions:
-        def list_for_user(self, db, user_id, filters):
-            calls["list"] = (user_id, filters)
-            return []
-
-        def create(self, db, user_id, dto):
-            calls["create"] = (user_id, dto)
-            return TransactionSchema(
-                id=str(uuid.uuid4()),
-                amount=dto.amount,
-                type=dto.type,
-                account_id=dto.account_id,
-                category_id=dto.category_id,
-                date=dto.date,
-                description=dto.description,
-                created_at="2026-09-02T18:31:00.000Z",
-                updated_at="2026-09-02T18:31:00.000Z",
-            )
-
-    class StubFinances:
-        def get_summary(self, db, user_id):
-            calls["summary"] = user_id
-            return FinancesSummary(
-                total_balance=18609.75,
-                total_income=3500,
-                total_expenses=200,
-                by_category=[
-                    CategorySummary(
-                        category_id=CATEGORY_ID,
-                        category_name="Supermercado",
-                        icon="shopping-cart",
-                        color="#FF5733",
-                        total_amount=150,
-                        percentage=75,
-                    )
-                ],
-            )
-
-    monkeypatch.setattr(transactions_api, "transactions_service", StubTransactions())
-    monkeypatch.setattr(finances_api, "finances_service", StubFinances())
+    monkeypatch.setattr(transactions_api, "transactions_service", StubTransactions(calls))
+    monkeypatch.setattr(finances_api, "finances_service", StubFinances(calls))
     return calls
+
+
+@pytest.fixture
+def tx_api(client, token_for, stub_services) -> SimpleNamespace:
+    """Cliente autenticado con los servicios de transacciones y finanzas reemplazados."""
+    user_id, token = token_for()
+    return SimpleNamespace(client=client, headers=auth_headers(token), calls=stub_services, user_id=user_id)
 
 
 @pytest.mark.parametrize(
@@ -158,12 +170,11 @@ def test_expense_without_category_returns_400(client, token_for, stub_services):
         ({"extra": 1}, "property extra should not exist"),
     ],
 )
-def test_create_transaction_validation_messages(client, token_for, stub_services, override, message):
-    _, token = token_for()
-    r = client.post("/api/transactions", json={**EXPENSE, **override}, headers=auth_headers(token))
+def test_create_transaction_validation_messages(tx_api, override, message):
+    r = tx_api.client.post("/api/transactions", json={**EXPENSE, **override}, headers=tx_api.headers)
     assert r.status_code == 400
     assert message in r.json()["message"]
-    assert "create" not in stub_services
+    assert "create" not in tx_api.calls
 
 
 @pytest.mark.parametrize(
@@ -179,29 +190,22 @@ def test_create_transaction_validation_messages(client, token_for, stub_services
         ),
     ],
 )
-def test_wrong_type_reports_all_field_messages_like_class_validator(
-    client, token_for, stub_services, override, messages
-):
-    _, token = token_for()
-    r = client.post("/api/transactions", json={**EXPENSE, **override}, headers=auth_headers(token))
+def test_wrong_type_reports_all_field_messages_like_class_validator(tx_api, override, messages):
+    r = tx_api.client.post("/api/transactions", json={**EXPENSE, **override}, headers=tx_api.headers)
     assert r.status_code == 400
     assert r.json()["message"] == messages
 
 
-def test_list_transactions_passes_filters(client, token_for, stub_services):
-    user_id, token = token_for()
-    r = client.get(
+def test_list_transactions_passes_filters(tx_api):
+    r = tx_api.client.get(
         "/api/transactions",
         params={"account_id": ACCOUNT_ID, "category_id": CATEGORY_ID, "type": "expense"},
-        headers=auth_headers(token),
+        headers=tx_api.headers,
     )
-    assert r.status_code == 200
-    assert r.json() == []
-    got_user, filters = stub_services["list"]
-    assert got_user == user_id
-    assert str(filters.account_id) == ACCOUNT_ID
-    assert str(filters.category_id) == CATEGORY_ID
-    assert filters.type.value == "expense"
+    assert (r.status_code, r.json()) == (200, [])
+    got_user, filters = tx_api.calls["list"]
+    received = (got_user, str(filters.account_id), str(filters.category_id), filters.type.value)
+    assert received == (tx_api.user_id, ACCOUNT_ID, CATEGORY_ID, "expense")
 
 
 @pytest.mark.parametrize(
@@ -213,9 +217,8 @@ def test_list_transactions_passes_filters(client, token_for, stub_services):
         ({"foo": "1"}, "property foo should not exist"),
     ],
 )
-def test_list_transactions_invalid_filters_return_400(client, token_for, stub_services, params, message):
-    _, token = token_for()
-    r = client.get("/api/transactions", params=params, headers=auth_headers(token))
+def test_list_transactions_invalid_filters_return_400(tx_api, params, message):
+    r = tx_api.client.get("/api/transactions", params=params, headers=tx_api.headers)
     assert r.status_code == 400
     assert r.json()["message"] == [message]
 

@@ -1,38 +1,66 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { isUUID } from 'class-validator';
 import { FindOptionsWhere, Repository } from 'typeorm';
+import { assertNotEmptyUpdate, findOwnedOrFail, pickDefined, pickPresent, toDate } from '../common/owned-records';
 import { CreateTaskDto } from '../dto/tasks/create-task.dto';
 import { ListTasksQueryDto } from '../dto/tasks/list-tasks-query.dto';
 import { TaskResponseDto } from '../dto/tasks/task-response.dto';
 import { UpdateTaskDto } from '../dto/tasks/update-task.dto';
 import { Task, TaskPriority, TaskStatus } from '../models/task.entity';
 
-const NOT_FOUND_MESSAGE = 'Recurso no encontrado.';
-export const EMPTY_UPDATE_MESSAGE = 'Debe enviarse al menos un campo para actualizar.';
+export { EMPTY_UPDATE_MESSAGE } from '../common/owned-records';
 
-function isPresent<T>(value: T | null | undefined): value is T {
-  return value !== undefined && value !== null;
+const toResponse = (row: Task) => TaskResponseDto.fromEntity(row);
+
+const newestFirst = { createdAt: 'DESC' } as const;
+
+/** Valores de una tarea nueva para los campos que el cliente no envía. */
+const TASK_DEFAULTS = {
+  description: null,
+  priority: TaskPriority.MEDIUM,
+  status: TaskStatus.PENDING,
+  dueDate: null,
+  estimatedMinutes: null,
+};
+
+/** Columnas de una tarea nueva: lo enviado por el cliente sobre {@link TASK_DEFAULTS}. */
+function newTask(userId: string, dto: CreateTaskDto) {
+  return {
+    userId,
+    ...TASK_DEFAULTS,
+    ...pickPresent({
+      title: dto.title,
+      description: dto.description,
+      priority: dto.priority,
+      status: dto.status,
+      dueDate: toDate(dto.due_date || undefined),
+      estimatedMinutes: dto.estimated_minutes,
+    }),
+  };
+}
+
+/** Filtros opcionales del listado (siempre acotado al usuario). */
+function taskFilters(userId: string, query: ListTasksQueryDto): FindOptionsWhere<Task> {
+  return { userId, ...pickPresent({ status: query.status || undefined, priority: query.priority || undefined }) };
 }
 
 /**
- * `title`/`priority`/`status` son NOT NULL: un `null` explícito se ignora
- * (`@IsOptional` lo deja pasar la validación). Igual que el Backend B.
+ * Cambios de un PATCH. `title`/`priority`/`status` son NOT NULL: un `null` explícito se
+ * ignora (`@IsOptional` lo deja pasar la validación), igual que el Backend B; en los campos
+ * anulables, `null` borra el valor.
  */
-function applyRequiredFields(task: Task, dto: UpdateTaskDto): void {
-  if (isPresent(dto.title)) task.title = dto.title;
-  if (isPresent(dto.priority)) task.priority = dto.priority;
-  if (isPresent(dto.status)) task.status = dto.status;
+function taskChanges(dto: UpdateTaskDto): Partial<Task> {
+  return {
+    ...pickPresent({ title: dto.title, priority: dto.priority, status: dto.status }),
+    ...pickDefined({
+      description: dto.description,
+      dueDate: toDate(dto.due_date),
+      estimatedMinutes: dto.estimated_minutes,
+    }),
+  };
 }
 
-function applyNullableFields(task: Task, dto: UpdateTaskDto): void {
-  if (dto.description !== undefined) task.description = dto.description;
-  if (dto.due_date !== undefined) {
-    task.dueDate = dto.due_date === null ? null : new Date(dto.due_date);
-  }
-  if (dto.estimated_minutes !== undefined) task.estimatedMinutes = dto.estimated_minutes;
-}
-
+/** Tareas del usuario (más recientes primero). `update` es una edición parcial. */
 @Injectable()
 export class TasksService {
   constructor(
@@ -40,66 +68,29 @@ export class TasksService {
     private readonly tasks: Repository<Task>,
   ) {}
 
-  async findAllForUser(userId: string, query: ListTasksQueryDto = {}): Promise<TaskResponseDto[]> {
-    const where: FindOptionsWhere<Task> = { userId };
-    if (query.status) where.status = query.status;
-    if (query.priority) where.priority = query.priority;
-
-    const rows = await this.tasks.find({ where, order: { createdAt: 'DESC' } });
-    return rows.map((row) => TaskResponseDto.fromEntity(row));
+  async findAllForUser(userId: string, query: ListTasksQueryDto = {}) {
+    const rows = await this.tasks.find({ where: taskFilters(userId, query), order: newestFirst });
+    return rows.map(toResponse);
   }
 
-  async create(userId: string, dto: CreateTaskDto): Promise<TaskResponseDto> {
-    const entity = this.tasks.create({
-      userId,
-      title: dto.title,
-      description: dto.description ?? null,
-      priority: dto.priority ?? TaskPriority.MEDIUM,
-      status: dto.status ?? TaskStatus.PENDING,
-      dueDate: dto.due_date ? new Date(dto.due_date) : null,
-      estimatedMinutes: dto.estimated_minutes ?? null,
-    });
-    const saved = await this.tasks.save(entity);
-    return TaskResponseDto.fromEntity(saved);
+  async create(userId: string, dto: CreateTaskDto) {
+    const entity = this.tasks.create(newTask(userId, dto));
+    return toResponse(await this.tasks.save(entity));
   }
 
-  async findOneForUser(userId: string, id: string): Promise<TaskResponseDto> {
-    const task = await this.findOwnedOrFail(userId, id);
-    return TaskResponseDto.fromEntity(task);
+  async findOneForUser(userId: string, id: string) {
+    return toResponse(await findOwnedOrFail(this.tasks, userId, id));
   }
 
-  /** Edición parcial: solo se modifican los campos presentes en el payload. */
-  async update(userId: string, id: string, dto: UpdateTaskDto): Promise<TaskResponseDto> {
-    if (Object.values(dto).every((value) => value === undefined)) {
-      throw new BadRequestException(EMPTY_UPDATE_MESSAGE);
-    }
-
-    const task = await this.findOwnedOrFail(userId, id);
-    applyRequiredFields(task, dto);
-    applyNullableFields(task, dto);
-    const saved = await this.tasks.save(task);
-    return TaskResponseDto.fromEntity(saved);
+  async update(userId: string, id: string, dto: UpdateTaskDto) {
+    assertNotEmptyUpdate(dto);
+    const task = await findOwnedOrFail(this.tasks, userId, id);
+    Object.assign(task, taskChanges(dto));
+    return toResponse(await this.tasks.save(task));
   }
 
   async remove(userId: string, id: string): Promise<void> {
-    const task = await this.findOwnedOrFail(userId, id);
+    const task = await findOwnedOrFail(this.tasks, userId, id);
     await this.tasks.remove(task);
-  }
-
-  /**
-   * Aislamiento por usuario: un `id` de otro usuario (o inexistente, o con
-   * formato inválido) responde `404` — nunca revela si existe para otro.
-   */
-  private async findOwnedOrFail(userId: string, id: string): Promise<Task> {
-    if (!isUUID(id)) {
-      throw new NotFoundException(NOT_FOUND_MESSAGE);
-    }
-
-    const task = await this.tasks.findOne({ where: { id, userId } });
-    if (!task) {
-      throw new NotFoundException(NOT_FOUND_MESSAGE);
-    }
-
-    return task;
   }
 }

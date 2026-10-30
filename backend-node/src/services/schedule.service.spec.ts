@@ -14,51 +14,52 @@ import { INVALID_RANGE_MESSAGE, ScheduleService } from './schedule.service';
  *  - PATCH valida el rango combinando lo enviado con lo guardado.
  *  - Bloque o tarea de otro usuario / inexistente / id inválido -> 404.
  */
-describe('ScheduleService', () => {
-  const OWNER_ID = '3f1a2b4c-5d6e-7f80-9a1b-2c3d4e5f6071';
-  const BLOCK_ID = '7c6b5a49-3827-4165-9d4c-3b2a19087f6e';
-  const TASK_ID = '1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9';
+const OWNER_ID = '3f1a2b4c-5d6e-7f80-9a1b-2c3d4e5f6071';
 
-  const buildBlock = (over: Partial<TimeBlock> = {}): TimeBlock =>
-    Object.assign(new TimeBlock(), {
-      id: BLOCK_ID,
-      userId: OWNER_ID,
-      title: 'Foco profundo',
-      description: null,
-      startTime: new Date('2026-10-28T13:00:00.000Z'),
-      endTime: new Date('2026-10-28T14:30:00.000Z'),
-      actualDurationMinutes: 25,
-      category: TimeBlockCategory.WORK,
-      taskId: null,
-      isCompleted: false,
-      createdAt: new Date('2026-10-28T12:00:00.000Z'),
-      updatedAt: new Date('2026-10-28T12:00:00.000Z'),
-      ...over,
-    });
+const BLOCK_ID = '7c6b5a49-3827-4165-9d4c-3b2a19087f6e';
 
-  let blocks: jest.Mocked<Pick<Repository<TimeBlock>, 'find' | 'findOne' | 'create' | 'save' | 'remove'>>;
-  let tasks: jest.Mocked<Pick<Repository<Task>, 'exists'>>;
-  let service: ScheduleService;
+const TASK_ID = '1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9';
 
-  beforeEach(() => {
-    blocks = {
-      find: jest.fn(),
-      findOne: jest.fn(),
-      create: jest.fn((v) => Object.assign(new TimeBlock(), v)) as never,
-      save: jest.fn(async (v) => Object.assign(buildBlock(), v)) as never,
-      remove: jest.fn(),
-    };
-    tasks = { exists: jest.fn().mockResolvedValue(true) };
-    service = new ScheduleService(
-      blocks as unknown as Repository<TimeBlock>,
-      tasks as unknown as Repository<Task>,
-    );
+const buildBlock = (over: Partial<TimeBlock> = {}): TimeBlock =>
+  Object.assign(new TimeBlock(), {
+    id: BLOCK_ID,
+    userId: OWNER_ID,
+    title: 'Foco profundo',
+    description: null,
+    startTime: new Date('2026-10-28T13:00:00.000Z'),
+    endTime: new Date('2026-10-28T14:30:00.000Z'),
+    actualDurationMinutes: 25,
+    category: TimeBlockCategory.WORK,
+    taskId: null,
+    isCompleted: false,
+    createdAt: new Date('2026-10-28T12:00:00.000Z'),
+    updatedAt: new Date('2026-10-28T12:00:00.000Z'),
+    ...over,
   });
 
-  it('findAllForUser filtra por userId + rango y mapea al contrato', async () => {
-    blocks.find.mockResolvedValue([buildBlock()]);
+let blocks: jest.Mocked<Pick<Repository<TimeBlock>, 'find' | 'findOne' | 'create' | 'save' | 'remove'>>;
 
-    const result = await service.findAllForUser(OWNER_ID, {
+let tasks: jest.Mocked<Pick<Repository<Task>, 'exists'>>;
+
+let service: ScheduleService;
+
+beforeEach(() => {
+  blocks = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn((v) => Object.assign(new TimeBlock(), v)) as never,
+    save: jest.fn(async (v) => Object.assign(buildBlock(), v)) as never,
+    remove: jest.fn(),
+  };
+  tasks = { exists: jest.fn().mockResolvedValue(true) };
+  service = new ScheduleService(blocks as unknown as Repository<TimeBlock>, tasks as unknown as Repository<Task>);
+});
+
+describe('ScheduleService', () => {
+  it('findAllForUser filtra por userId + rango', async () => {
+    blocks.find.mockResolvedValue([]);
+
+    await service.findAllForUser(OWNER_ID, {
       from: '2026-10-28T03:00:00.000Z',
       to: '2026-10-29T03:00:00.000Z',
     });
@@ -71,7 +72,14 @@ describe('ScheduleService', () => {
       },
       order: { startTime: 'ASC' },
     });
-    expect(result).toEqual([
+  });
+});
+
+describe('ScheduleService', () => {
+  it('findAllForUser mapea al contrato', async () => {
+    blocks.find.mockResolvedValue([buildBlock()]);
+
+    await expect(service.findAllForUser(OWNER_ID, {})).resolves.toEqual([
       {
         id: BLOCK_ID,
         title: 'Foco profundo',
@@ -86,7 +94,9 @@ describe('ScheduleService', () => {
       },
     ]);
   });
+});
 
+describe('ScheduleService', () => {
   it('create aplica defaults y el user_id del JWT', async () => {
     await service.create(OWNER_ID, {
       title: 'Bloque',
@@ -105,7 +115,9 @@ describe('ScheduleService', () => {
       }),
     );
   });
+});
 
+describe('ScheduleService', () => {
   it.each([
     ['igual', '2026-10-28T13:00:00.000Z'],
     ['anterior', '2026-10-28T12:00:00.000Z'],
@@ -128,12 +140,14 @@ describe('ScheduleService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(tasks.exists).toHaveBeenCalledWith({ where: { id: TASK_ID, userId: OWNER_ID } });
   });
+});
 
+describe('ScheduleService', () => {
   it('update valida el rango combinando lo enviado con lo guardado', async () => {
     blocks.findOne.mockResolvedValue(buildBlock());
-    await expect(
-      service.update(OWNER_ID, BLOCK_ID, { start_time: '2026-10-28T15:00:00.000Z' }),
-    ).rejects.toThrow(new BadRequestException(INVALID_RANGE_MESSAGE));
+    await expect(service.update(OWNER_ID, BLOCK_ID, { start_time: '2026-10-28T15:00:00.000Z' })).rejects.toThrow(
+      new BadRequestException(INVALID_RANGE_MESSAGE),
+    );
   });
 
   it('update parcial: redimensiona y borra task_id con null', async () => {
@@ -150,7 +164,9 @@ describe('ScheduleService', () => {
   it('update con payload vacío responde 400', async () => {
     await expect(service.update(OWNER_ID, BLOCK_ID, {})).rejects.toBeInstanceOf(BadRequestException);
   });
+});
 
+describe('ScheduleService', () => {
   it('bloque de otro usuario o id inválido responde 404', async () => {
     blocks.findOne.mockResolvedValue(null);
     await expect(service.remove(OWNER_ID, BLOCK_ID)).rejects.toBeInstanceOf(NotFoundException);

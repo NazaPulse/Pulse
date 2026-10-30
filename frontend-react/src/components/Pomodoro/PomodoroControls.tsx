@@ -19,9 +19,7 @@ export function PomodoroModeTabs({ mode, onSelect }: ModeTabsProps) {
           ].join(' ')}
         >
           {MODE_LABELS[value]}
-          <span className="block text-[11px] font-normal opacity-80">
-            {MODE_DURATIONS_MS[value] / 60_000} min
-          </span>
+          <span className="block text-[11px] font-normal opacity-80">{MODE_DURATIONS_MS[value] / 60_000} min</span>
         </button>
       ))}
     </div>
@@ -37,30 +35,39 @@ type ControlsProps = {
   onReset: () => void
 }
 
-export function PomodoroControls({ mode, running, pristine, onStart, onPause, onReset }: ControlsProps) {
-  return (
-    <div className="flex justify-center gap-3">
-      {running ? (
-        <button
-          type="button"
-          onClick={onPause}
-          className="min-w-32 rounded-lg bg-white/10 px-5 py-2.5 text-sm font-semibold text-fg transition hover:bg-white/15"
-        >
-          Pausar
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={onStart}
-          className={`min-w-32 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition ${MODE_STYLES[mode].button}`}
-        >
-          {pristine ? 'Iniciar' : 'Reanudar'}
-        </button>
-      )}
+/** Pausar mientras corre; si no, Iniciar (o Reanudar si ya había empezado). */
+function PrimaryControl(props: Omit<ControlsProps, 'onReset'>) {
+  const { mode, pristine } = props
+  if (props.running) {
+    return (
       <button
         type="button"
-        onClick={onReset}
-        disabled={pristine}
+        onClick={props.onPause}
+        className="min-w-32 rounded-lg bg-white/10 px-5 py-2.5 text-sm font-semibold text-fg transition hover:bg-white/15"
+      >
+        Pausar
+      </button>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={props.onStart}
+      className={`min-w-32 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition ${MODE_STYLES[mode].button}`}
+    >
+      {pristine ? 'Iniciar' : 'Reanudar'}
+    </button>
+  )
+}
+
+export function PomodoroControls(props: ControlsProps) {
+  return (
+    <div className="flex justify-center gap-3">
+      <PrimaryControl {...props} />
+      <button
+        type="button"
+        onClick={props.onReset}
+        disabled={props.pristine}
         className="rounded-lg border border-line-strong bg-white/[0.03] px-5 py-2.5 text-sm font-medium text-fg-soft transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Reiniciar

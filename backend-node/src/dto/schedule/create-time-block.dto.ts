@@ -12,9 +12,47 @@ import {
   MinLength,
 } from 'class-validator';
 import { TimeBlockCategory } from '../../models/time-block.entity';
+import { Field } from '../../common/decorators/field.decorator';
 
 export const CATEGORY_ENUM_MESSAGE =
   'category must be one of the following values: work, sleep, leisure, exercise, other';
+
+/** Validación y documentación Swagger de cada campo. */
+const fields = {
+  title: Field(
+    ApiProperty({ minLength: 1, maxLength: 200, example: 'Pagar la tarjeta de crédito' }),
+    IsString(),
+    MinLength(1),
+    MaxLength(200),
+  ),
+  description: Field(
+    ApiPropertyOptional({ maxLength: 1000, example: 'Revisar el resumen antes de pagar' }),
+    IsOptional(),
+    IsString(),
+    MaxLength(1000),
+  ),
+  start_time: Field(
+    ApiProperty({ format: 'date-time', example: '2026-10-28T13:00:00.000Z' }),
+    IsDateString({ strict: true }),
+  ),
+  end_time: Field(
+    ApiProperty({ format: 'date-time', example: '2026-10-28T14:30:00.000Z' }),
+    IsDateString({ strict: true }),
+  ),
+  actual_duration_minutes: Field(
+    ApiPropertyOptional({ type: Number, minimum: 0, default: 0 }),
+    IsOptional(),
+    IsInt(),
+    Min(0),
+  ),
+  category: Field(
+    ApiPropertyOptional({ enum: TimeBlockCategory, default: TimeBlockCategory.OTHER }),
+    IsOptional(),
+    IsEnum(TimeBlockCategory, { message: CATEGORY_ENUM_MESSAGE }),
+  ),
+  task_id: Field(ApiPropertyOptional({ format: 'uuid' }), IsOptional(), IsUUID()),
+  is_completed: Field(ApiPropertyOptional({ default: false }), IsOptional(), IsBoolean()),
+};
 
 /**
  * Cuerpo de `POST /api/schedule`.
@@ -22,44 +60,27 @@ export const CATEGORY_ENUM_MESSAGE =
  * JWT; `start_time < end_time` se valida en el servicio.
  */
 export class CreateTimeBlockDto {
-  @ApiProperty({ minLength: 1, maxLength: 200, example: 'Pagar la tarjeta de crédito' })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(200)
+  @fields.title
   title!: string;
 
-  @ApiPropertyOptional({ maxLength: 1000, example: 'Revisar el resumen antes de pagar' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(1000)
+  @fields.description
   description?: string;
 
-  @ApiProperty({ format: 'date-time', example: '2026-10-28T13:00:00.000Z' })
-  @IsDateString({ strict: true })
+  @fields.start_time
   start_time!: string;
 
-  @ApiProperty({ format: 'date-time', example: '2026-10-28T14:30:00.000Z' })
-  @IsDateString({ strict: true })
+  @fields.end_time
   end_time!: string;
 
-  @ApiPropertyOptional({ type: Number, minimum: 0, default: 0 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
+  @fields.actual_duration_minutes
   actual_duration_minutes?: number;
 
-  @ApiPropertyOptional({ enum: TimeBlockCategory, default: TimeBlockCategory.OTHER })
-  @IsOptional()
-  @IsEnum(TimeBlockCategory, { message: CATEGORY_ENUM_MESSAGE })
+  @fields.category
   category?: TimeBlockCategory;
 
-  @ApiPropertyOptional({ format: 'uuid' })
-  @IsOptional()
-  @IsUUID()
+  @fields.task_id
   task_id?: string;
 
-  @ApiPropertyOptional({ default: false })
-  @IsOptional()
-  @IsBoolean()
+  @fields.is_completed
   is_completed?: boolean;
 }
