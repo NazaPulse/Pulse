@@ -3,23 +3,23 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación III (RepoSense + análisis de calidad + constancia). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-11-03.
+> Generado: 2026-11-05.
 
 ## 1. Veredicto
 
 | Aspecto | Resultado |
 |---|---|
-| Tipo de proyecto | frontend |
-| Índice de calidad de servicios | **4/100** (mínimo 60) |
-| Criterios cumplidos | **12/15** |
+| Tipo de proyecto | app |
+| Índice de calidad de servicios | **44/100** (mínimo 50) |
+| Criterios cumplidos | **13/16** |
 | Aprobado (semáforo) | **NO** |
-| Código (LOC) | 20,617 |
-| Archivos de código | 358 |
+| Código (LOC) | 16,977 |
+| Archivos de código | 323 |
 | Tests (archivos) | 35 |
 | Cobertura de líneas | 82.1% (mínimo 80%) |
-| Capas detectadas | vistas, servicios, estado |
+| Capas detectadas | presentacion, logica, datos, vistas, servicios, estado |
 
-> **Aprobado** exige cumplir **todos** los criterios del semáforo. No es una nota: sirve para ordenar y priorizar la revisión.
+> **Aprobado** exige las compuertas críticas (**SEC**, **SQL**, **capas**, **índice ≥ 50** y **cobertura ≥ 80 %** cuando aplica) y tolera hasta **3 criterios en rojo** (12/15). No es una nota: sirve para ordenar y priorizar la revisión.
 
 ## 2. Autoría (RepoSense)
 
@@ -35,7 +35,7 @@
 
 | Alumno | Sesiones | Cumplimiento | Pausa | Recencia | IC | Nivel | Para subir de nivel |
 |---|--:|--:|--:|--:|--:|--|--|
-| Nazareno Cruz Moreno | 13 | 59% | 14 d | 93% | **51** | No aprueba | Pausa 14 d (máx. 10 d) |
+| Nazareno Cruz Moreno | 13 | 54% | 14 d | 57% | **43** | Aprueba | Cumplimiento 54% (mín. 100%); Pausa 14 d (máx. 5 d); Recencia 57% (mín. 75%) |
 
 > Para aprobar el IC: **2 sesiones por semana** sostenidas, sin pausas mayores a **10 días** y con actividad en las **últimas 2 semanas**. Se excluyen merges, bots y al docente. Zona horaria UTC-3.
 
@@ -47,7 +47,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Un resumen numérico (0-100) que combina todas las señales y métricas del análisis, con topes duros por duplicación.
 - **Por qué importa:** Ordena y prioriza la revisión: un índice bajo indica varias señales que conviene mirar juntas.
-- **Tu resultado:** índice **4/100** _(mínimo 60)_
+- **Tu resultado:** índice **44/100** _(mínimo 50)_
 - **Para investigar la causa:**
     - ¿En qué momento del proyecto se concentraron los problemas (arranque, integración de partes, cierre)?
     - ¿El índice bajó por muchas señales chicas o por una o dos graves?
@@ -57,7 +57,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Porcentaje de bloques de código repetidos (similitud) en el repositorio.
 - **Por qué importa:** Cada copia se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **5.4%** de duplicación _(máximo 15%)_
+- **Tu resultado:** **6.4%** de duplicación _(máximo 15%)_
 
 ### 3. Secretos hardcodeados (SEC) — OK
 
@@ -75,7 +75,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Si el código está separado en capas reconocibles (backend: presentación / lógica / datos; frontend: vistas / servicios / estado).
 - **Por qué importa:** Sin separación, cada archivo hace de todo y cualquier cambio toca varios lugares a la vez.
-- **Tu resultado:** **3** capa(s) detectada(s): vistas, servicios, estado _(mínimo 2 capas (a partir de 150 LOC))_
+- **Tu resultado:** **6** capa(s) detectada(s): presentacion, logica, datos, vistas, servicios, estado _(mínimo 2 capas (a partir de 150 LOC))_
 
 ### 6. Acceso a datos dentro del componente (HTTP) — OK
 
@@ -105,33 +105,33 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
     - ¿Mezcla responsabilidades distintas (mostrar, calcular, pedir datos)?
     - ¿Se dividió por pantalla o por unidad de responsabilidad?
 
-### 10. Baja cohesión (Coh) — A REVISAR
+### 10. Baja cohesión (Coh) — OK
 
 - **Qué mide:** Una clase o unidad cuyos métodos y campos no están relacionados entre sí.
 - **Por qué importa:** Una unidad que cambia por motivos distintos es frágil y cuesta entenderla.
-- **Tu resultado:** **3** unidad(es) con baja cohesión _(máximo 0)_
-- **Para investigar la causa:**
-    - ¿La unidad agrupa cosas que en realidad pertenecen a lugares distintos?
-    - ¿Cambia por motivos diferentes según la tarea?
-    - ¿Se pensó su responsabilidad antes de escribirla, o se fue agregando?
+- **Tu resultado:** **0** unidad(es) con baja cohesión _(máximo 0)_
 
 ### 11. Complejidad alta (Compl) — OK
 
 - **Qué mide:** Complejidad ciclomática: cantidad de caminos posibles dentro de una función (condicionales, bucles, casos).
 - **Por qué importa:** Muchos caminos = difícil de seguir y de probar; suelen esconderse casos sin cubrir.
-- **Tu resultado:** **58** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 20617 LOC))_
+- **Tu resultado:** **37** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 16977 LOC))_
 
 ### 12. Funciones/métodos largos o con muchos parámetros (Tam) — OK
 
 - **Qué mide:** Tamaño de las funciones/métodos y cantidad de parámetros.
 - **Por qué importa:** Una función que hace varias cosas cuesta leerla, nombrarla y reutilizarla.
-- **Tu resultado:** **72** función/método(s) largos o con muchos parámetros _(máximo 10 por 1000 LOC)_
+- **Tu resultado:** **36** función/método(s) largos o con muchos parámetros _(máximo 10 por 1000 LOC)_
 
-### 13. Acoplamiento alto (Acop) — OK
+### 13. Acoplamiento alto (Acop) — A REVISAR
 
 - **Qué mide:** Cuánto depende una unidad de las partes internas de otra.
 - **Por qué importa:** Piezas muy enlazadas hacen que un cambio se propague y que sea difícil reemplazar partes.
 - **Tu resultado:** **38** unidad(es) con acoplamiento alto _(máximo 2 por 1000 LOC)_
+- **Para investigar la causa:**
+    - ¿Las piezas se conocen en detalle entre sí (acceden a campos o estructuras internas)?
+    - ¿El acceso a datos ocurre desde lugares que no son los responsables?
+    - ¿Se puede cambiar una parte sin tocar las demás?
 
 ### 14. Cobertura de tests (Cob) — OK
 
@@ -139,21 +139,27 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 - **Por qué importa:** Un test que existe pero no ejecuta el código no protege de nada: la cobertura muestra qué partes quedan sin verificar.
 - **Tu resultado:** **82.1%** de líneas cubiertas · fuente: ejecución: pytest · salteado: frontend-vue, frontend-react _(mínimo 80% de líneas)_
 
-### 15. Vistas del frontend (Vistas) — OK
+### 15. Endpoints del backend (EP) — OK
+
+- **Qué mide:** Cantidad de endpoints (rutas HTTP) expuestos por el backend.
+- **Por qué importa:** El backend se mide por lo que expone: pocos endpoints sugiere poca funcionalidad de servicio.
+- **Tu resultado:** **83** endpoint(s) _(mínimo 5)_
+
+### 16. Vistas del frontend (Vistas) — OK
 
 - **Qué mide:** Cantidad de vistas/componentes de pantalla del frontend.
 - **Por qué importa:** El frontend se mide por pantallas: pocas vistas sugiere poca cobertura de la interfaz pedida.
-- **Tu resultado:** **141** vista(s)/componente(s) _(mínimo 8)_
+- **Tu resultado:** **141** vista(s)/componente(s) _(mínimo 6)_
 
-## 5. Qué falta para aprobar
+## 5. Observaciones y qué falta
 
 Criterios que hoy están en rojo y, para cada uno, una explicación breve de **cómo corregirlo** hasta alcanzar el nivel de aprobación (perfil `exigente`):
 
-| Criterio | Resultado actual | Meta | Cómo corregirlo |
-|---|---|---|---|
-| Índice de calidad de servicios (indice) | índice **4/100** | mínimo 60 | El índice es un resumen: sube al corregir los criterios en rojo. Empezá por los de más peso (duplicación ≤15%, SEC y SQL en 0, capas ≥2) y volvé a medir; la meta es ≥60. |
-| Componente demasiado grande (BigC) | **4** componente(s) demasiado grande(s) | máximo 1 | Dividí el componente por responsabilidad en subcomponentes (render, estado, acceso a datos) y dejá el original sólo como orquestador. Meta: ≤1 componente grande. |
-| Baja cohesión (Coh) | **3** unidad(es) con baja cohesión | máximo 0 | Separá la clase en unidades con una sola responsabilidad: si los métodos cambian por motivos distintos, son clases distintas. Meta: 0 clases con baja cohesión. |
+| Criterio | Resultado actual | Meta | Brecha | Cómo alcanzarlo |
+|---|---|---|---|---|
+| Índice de calidad de servicios (indice) | índice **44/100** | mínimo 50 | faltan 6 pts | El índice sólo penaliza lo que **excede** los umbrales de cada criterio: si tenés todo en verde, el índice es 100. Si está en rojo, mirá los hallazgos del anexo (archivo y línea) y corregí primero duplicación, SEC, SQL y capas. Meta del perfil exigente: ≥50. |
+| Componente demasiado grande (BigC) | **4** componente(s) demasiado grande(s) | máximo 1 | 3 componente(s) de más | Dividí el componente por responsabilidad en subcomponentes (render, estado, acceso a datos) y dejá el original sólo como orquestador. Meta: ≤1 componente grande. |
+| Acoplamiento alto (Acop) | **38** unidad(es) con acoplamiento alto | máximo 2 por 1000 LOC | 38 hallazgo(s); el máximo para 16,977 LOC es 34.0 | Hacé que cada unidad dependa de una interfaz o de un módulo de servicio, no de los detalles internos de otra; evitá acceder a campos ajenos. Meta: ≤2 por 1000 LOC. |
 
 > Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo. Después de corregir, volvé a correr la medición: el semáforo se recalcula sobre `main`.
 
@@ -167,8 +173,45 @@ Archivos donde el análisis encontró cada señal en rojo (sin número de línea
 - `frontend-vue/src/components/Schedule/GanttTimeline.vue`
 - `frontend-vue/src/pages/ScheduleView.vue`
 
-**Baja cohesión (Coh)** — 1 archivo(s):
-- `backend-python/tests/conftest.py`
+**Acoplamiento alto (Acop)** — 38 archivo(s):
+- `backend-node/src/controllers/accounts.controller.ts`
+- `backend-node/src/controllers/auth.controller.ts`
+- `backend-node/src/controllers/categories.controller.ts`
+- `backend-node/src/controllers/finances.controller.ts`
+- `backend-node/src/controllers/notes.controller.ts`
+- `backend-node/src/controllers/schedule.controller.ts`
+- `backend-node/src/controllers/tasks.controller.ts`
+- `backend-node/src/controllers/transactions.controller.ts`
+- `backend-node/src/dto/accounts/create-account.dto.ts`
+- `backend-node/src/dto/accounts/update-account.dto.ts`
+- `backend-node/src/dto/auth/register.dto.ts`
+- `backend-node/src/dto/categories/create-category.dto.ts`
+- `backend-node/src/dto/categories/update-category.dto.ts`
+- `backend-node/src/dto/notes/create-note.dto.ts`
+- `backend-node/src/dto/schedule/create-time-block.dto.ts`
+- `backend-node/src/dto/schedule/update-time-block.dto.ts`
+- `backend-node/src/dto/tasks/create-task.dto.ts`
+- `backend-node/src/dto/tasks/task-response.dto.ts`
+- `backend-node/src/dto/tasks/update-task.dto.ts`
+- `backend-node/src/dto/transactions/create-transaction.dto.ts`
+- `backend-node/src/models/transaction.entity.ts`
+- `backend-node/src/services/accounts.service.ts`
+- `backend-node/src/services/auth.service.ts`
+- `backend-node/src/services/categories.service.ts`
+- `backend-node/src/services/finances.service.ts`
+- `backend-node/src/services/hashing/argon2-hashing.service.ts`
+- `backend-node/src/services/notes.service.ts`
+- `backend-node/src/services/schedule.service.ts`
+- `backend-node/src/services/tasks.service.ts`
+- `backend-node/src/services/transactions.service.ts`
+- `backend-python/app/core/config.py`
+- `backend-python/app/models/account.py`
+- `backend-python/app/models/time_block.py`
+- `backend-python/app/models/transaction.py`
+- `backend-python/app/schemas/auth.py`
+- `backend-python/app/schemas/transaction.py`
+- `backend-python/app/services/hashing.py`
+- `frontend-shared/audioRecorder.ts`
 
 ---
 _Informe generado por la cátedra. Los umbrales corresponden al perfil `exigente`. Ante dudas, revisá el archivo señalado y el criterio en `CRITERIOS-CALIDAD.md`._
