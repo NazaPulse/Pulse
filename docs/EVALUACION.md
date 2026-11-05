@@ -157,7 +157,7 @@ Criterios que hoy están en rojo y, para cada uno, una explicación breve de **c
 
 | Criterio | Resultado actual | Meta | Brecha | Cómo alcanzarlo |
 |---|---|---|---|---|
-| Índice de calidad de servicios (indice) | índice **44/100** | mínimo 50 | faltan 6 pts | El índice sólo penaliza lo que **excede** los umbrales de cada criterio: si tenés todo en verde, el índice es 100. Si está en rojo, mirá los hallazgos del anexo (archivo y línea) y corregí primero duplicación, SEC, SQL y capas. Meta del perfil exigente: ≥50. |
+| Índice de calidad de servicios (indice) | índice **44/100** | mínimo 50 | faltan 6 pts | El índice sólo penaliza lo que **excede** los umbrales de cada criterio: si tenés todo en verde, el índice es 100. Si está en rojo, mirá la columna **Brecha** y los criterios en rojo; corregí primero duplicación, SEC, SQL y capas. Meta del perfil exigente: ≥50. |
 | Componente demasiado grande (BigC) | **4** componente(s) demasiado grande(s) | máximo 1 | 3 componente(s) de más | Dividí el componente por responsabilidad en subcomponentes (render, estado, acceso a datos) y dejá el original sólo como orquestador. Meta: ≤1 componente grande. |
 | Acoplamiento alto (Acop) | **38** unidad(es) con acoplamiento alto | máximo 2 por 1000 LOC | 38 hallazgo(s); el máximo para 16,977 LOC es 34.0 | Hacé que cada unidad dependa de una interfaz o de un módulo de servicio, no de los detalles internos de otra; evitá acceder a campos ajenos. Meta: ≤2 por 1000 LOC. |
 
