@@ -1,10 +1,14 @@
 import { useState } from 'react'
 
-import type { FinanceSummary } from '@shared/types'
+import type { CategorySummary, FinanceSummary } from '@shared/types'
 import { buildDonutSlices, findActive, isEmptyBreakdown } from '@shared/utils/donutChart'
 import { chartColor } from '@shared/chartPalette'
 import { DonutLegend } from './DonutLegend'
 import { DonutRing } from './DonutRing'
+
+// Paleta pastel de Pulse para los sobres sin color propio.
+const pulseSlices = (categories: CategorySummary[]) =>
+  buildDonutSlices(categories).map((slice, index) => ({ ...slice, color: chartColor(slice.color, index) }))
 
 export function ExpenseDonutChart({ summary }: { summary: FinanceSummary }) {
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -18,11 +22,7 @@ export function ExpenseDonutChart({ summary }: { summary: FinanceSummary }) {
     )
   }
 
-  // Paleta pastel de Pulse para los sobres sin color propio.
-  const slices = buildDonutSlices(categories).map((slice, index) => ({
-    ...slice,
-    color: chartColor(slice.color, index),
-  }))
+  const slices = pulseSlices(categories)
   return (
     <div className="pulse-card flex flex-col items-center gap-6 p-5 sm:flex-row sm:items-center">
       <DonutRing

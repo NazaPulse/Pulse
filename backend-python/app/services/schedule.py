@@ -34,7 +34,7 @@ _REQUIRED_FIELDS = (
     "category",
     "is_completed",
 )
-_NULLABLE_FIELDS = ("description",)
+_NULLABLE_FIELDS = ("description", "task_id")
 
 
 def to_response(block: TimeBlock) -> TimeBlockSchema:
@@ -61,17 +61,20 @@ def _column_value(value: object) -> object:
     return value.value if isinstance(value, Enum) else value
 
 
-def _apply_fields(block: TimeBlock, dto: TimeBlockUpdateRequest, sent: set[str]) -> None:
+def _task_uuid(value: str | None) -> uuid.UUID | None:
+    return uuid.UUID(value) if value else None
+
+
+def _sent_values(dto: TimeBlockUpdateRequest, sent: set[str]) -> dict[str, object]:
     """Los campos NOT NULL ignoran un `null` explícito; los anulables lo aplican."""
-    for field in _REQUIRED_FIELDS:
-        value = getattr(dto, field)
-        if field in sent and value is not None:
-            setattr(block, field, _column_value(value))
-    for field in _NULLABLE_FIELDS:
-        if field in sent:
-            setattr(block, field, getattr(dto, field))
-    if "task_id" in sent:
-        block.task_id = uuid.UUID(dto.task_id) if dto.task_id else None
+    values = {field: getattr(dto, field) for field in (*_REQUIRED_FIELDS, *_NULLABLE_FIELDS) if field in sent}
+    return {field: value for field, value in values.items() if value is not None or field in _NULLABLE_FIELDS}
+
+
+def _apply_fields(block: TimeBlock, dto: TimeBlockUpdateRequest, sent: set[str]) -> None:
+    for field, value in _sent_values(dto, sent).items():
+        convert = _task_uuid if field == "task_id" else _column_value
+        setattr(block, field, convert(value))
 
 
 def list_for_user(db: Session, user_id: uuid.UUID, rng: ScheduleRange) -> list[TimeBlockSchema]:

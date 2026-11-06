@@ -1,9 +1,21 @@
-import { HttpCode, HttpStatus, UseGuards, applyDecorators } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  Put,
+  UseGuards,
+  applyDecorators,
+} from '@nestjs/common';
 import type { Type } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiExcludeEndpoint,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -61,4 +73,22 @@ export function ApiEndpoint(options: ApiEndpointOptions) {
 /** Controlador que exige JWT (`bearerAuth`): agrupa en Swagger, documenta el esquema y aplica el guard. */
 export function ApiProtected(tag: string) {
   return applyDecorators(ApiTags(tag), ApiBearerAuth(), UseGuards(JwtAuthGuard));
+}
+
+/** Controlador protegido con JWT montado en `path` (ver {@link ApiProtected}). */
+export function ApiResource(tag: string, path: string) {
+  return applyDecorators(ApiProtected(tag), Controller(path));
+}
+
+const ROUTE_METHODS = { get: Get, post: Post, put: Put, patch: Patch, delete: Delete };
+
+export type HttpMethod = keyof typeof ROUTE_METHODS;
+
+/**
+ * Ruta HTTP (`method` + `path` de Nest) documentada con {@link ApiEndpoint}. `'hidden'` la
+ * deja fuera de Swagger (alias que no figuran en openapi.yaml).
+ */
+export function ApiRoute(method: HttpMethod, path: string | undefined, options: ApiEndpointOptions | 'hidden') {
+  const docs = options === 'hidden' ? ApiExcludeEndpoint() : ApiEndpoint(options);
+  return applyDecorators(ROUTE_METHODS[method](path), docs);
 }

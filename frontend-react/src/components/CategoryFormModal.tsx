@@ -12,21 +12,12 @@ type CategoryFormModalProps = {
   onSubmit: (values: CategoryUpdateRequest) => Promise<void>
 }
 
-export function CategoryFormModal({ category, onClose, onSubmit }: CategoryFormModalProps) {
-  const isEditing = Boolean(category)
-  const form = useCategoryForm(category, onSubmit)
-  const { values, setField, submitting } = form
+type CategoryForm = ReturnType<typeof useCategoryForm>
 
+function CategoryNameField({ form }: { form: CategoryForm }) {
+  const { values, setField, submitting } = form
   return (
-    <FormModal
-      title={isEditing ? 'Editar sobre' : 'Nuevo sobre'}
-      submitLabel={isEditing ? 'Guardar cambios' : 'Crear sobre'}
-      error={form.error}
-      submitting={submitting}
-      canSubmit={form.canSubmit}
-      onClose={onClose}
-      onSubmit={form.handleSubmit}
-    >
+    <>
       <Field
         label="Nombre"
         name="name"
@@ -37,7 +28,14 @@ export function CategoryFormModal({ category, onClose, onSubmit }: CategoryFormM
         maxLength={100}
         required
       />
+    </>
+  )
+}
 
+function TargetAmountField({ form }: { form: CategoryForm }) {
+  const { values, setField, submitting } = form
+  return (
+    <>
       <Field
         label="Monto objetivo"
         type="number"
@@ -50,7 +48,23 @@ export function CategoryFormModal({ category, onClose, onSubmit }: CategoryFormM
         disabled={submitting}
         required
       />
+    </>
+  )
+}
 
+function CategoryAmountFields({ form }: { form: CategoryForm }) {
+  return (
+    <>
+      <CategoryNameField form={form} />
+      <TargetAmountField form={form} />
+    </>
+  )
+}
+
+function CategoryLookFields({ form }: { form: CategoryForm }) {
+  const { values, setField, submitting } = form
+  return (
+    <>
       <CategoryColorField value={values.color} disabled={submitting} onChange={(color) => setField('color', color)} />
 
       <Select
@@ -65,6 +79,34 @@ export function CategoryFormModal({ category, onClose, onSubmit }: CategoryFormM
           </option>
         ))}
       </Select>
+    </>
+  )
+}
+
+function CategoryFields({ form }: { form: CategoryForm }) {
+  return (
+    <>
+      <CategoryAmountFields form={form} />
+      <CategoryLookFields form={form} />
+    </>
+  )
+}
+
+export function CategoryFormModal({ category, onClose, onSubmit }: CategoryFormModalProps) {
+  const isEditing = Boolean(category)
+  const form = useCategoryForm(category, onSubmit)
+
+  return (
+    <FormModal
+      title={isEditing ? 'Editar sobre' : 'Nuevo sobre'}
+      submitLabel={isEditing ? 'Guardar cambios' : 'Crear sobre'}
+      error={form.error}
+      submitting={form.submitting}
+      canSubmit={form.canSubmit}
+      onClose={onClose}
+      onSubmit={form.handleSubmit}
+    >
+      <CategoryFields form={form} />
     </FormModal>
   )
 }

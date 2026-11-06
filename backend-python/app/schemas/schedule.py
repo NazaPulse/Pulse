@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic_core import PydanticCustomError
 
 from app.schemas.productivity import _task_description, _title
-from app.schemas.transaction import _ISO_8601, is_uuid, parse_iso_datetime
+from app.schemas.transaction import _ISO_8601, as_number, is_uuid, parse_iso_datetime
 
 CATEGORY_ENUM_MESSAGE = (
     "category must be one of the following values: work, sleep, leisure, exercise, other"
@@ -61,17 +61,24 @@ def _optional(validator):
     return lambda v: None if v is None else validator(v)
 
 
+_MINUTES_INVALID = ("minutes_invalid", "actual_duration_minutes must be an integer number")
+# (negativo, entero) -> error; un número no negativo y entero es válido.
+_MINUTES_ERRORS = {
+    (True, False): _MINUTES_INVALID,
+    (True, True): ("minutes_min", "actual_duration_minutes must not be less than 0"),
+    (False, False): ("minutes_int", "actual_duration_minutes must be an integer number"),
+}
+
+
 def _minutes(v: Any) -> int:
     """`@IsInt()` + `@Min(0)`. Un valor que falla ambos usa `minutes_invalid` (ver `app/errors.py`)."""
-    is_number = isinstance(v, (int, float)) and not isinstance(v, bool)
-    is_int = is_number and float(v).is_integer()
-    if is_int and v >= 0:
-        return int(v)
-    if not is_number or (v < 0 and not is_int):
-        raise _fail("minutes_invalid", "actual_duration_minutes must be an integer number")
-    if v < 0:
-        raise _fail("minutes_min", "actual_duration_minutes must not be less than 0")
-    raise _fail("minutes_int", "actual_duration_minutes must be an integer number")
+    n = as_number(v)
+    if n is None:
+        raise _fail(*_MINUTES_INVALID)
+    key = (n < 0, float(n).is_integer())
+    if key == (False, True):
+        return int(n)
+    raise _fail(*_MINUTES_ERRORS[key])
 
 
 def _category(v: Any) -> TimeBlockCategory:

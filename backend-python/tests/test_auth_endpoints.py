@@ -1,6 +1,7 @@
 """Paridad de contrato con openapi.yaml y con el Backend A (NestJS):
 estructuras JSON, tipos y códigos HTTP de `/api/auth/register` y `/api/auth/login`.
 """
+from tests.helpers import pick
 
 VALID = {
     "email": "usuario@pulse.app",
@@ -13,10 +14,9 @@ def test_register_returns_201_userpublic_without_secrets(client):
     r = client.post("/api/auth/register", json=VALID)
     assert r.status_code == 201
     body = r.json()
+    # Sin `password` ni `password_hash`: sólo los campos públicos.
     assert set(body.keys()) == {"id", "email", "full_name", "created_at", "updated_at"}
-    assert body["email"] == "usuario@pulse.app"
-    assert body["full_name"] == "Ada Lovelace"
-    assert "password" not in body and "password_hash" not in body
+    assert pick(body, "email", "full_name") == {"email": "usuario@pulse.app", "full_name": "Ada Lovelace"}
 
 
 def test_register_duplicate_email_returns_400_string_message(client):
@@ -34,10 +34,10 @@ def test_register_validation_returns_400_array_message(client):
     r = client.post("/api/auth/register", json={"email": "no-es-email", "password": "corta"})
     assert r.status_code == 400
     body = r.json()
-    assert body["error"] == "Bad Request" and body["statusCode"] == 400
+    assert pick(body, "error", "statusCode") == {"error": "Bad Request", "statusCode": 400}
+    expected = {"email must be an email", "password must be longer than or equal to 12 characters"}
     assert isinstance(body["message"], list)
-    assert "email must be an email" in body["message"]
-    assert "password must be longer than or equal to 12 characters" in body["message"]
+    assert expected <= set(body["message"])
 
 
 def test_register_extra_property_rejected(client):

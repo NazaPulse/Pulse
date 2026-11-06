@@ -84,82 +84,135 @@ def fake_users(monkeypatch) -> FakeUsersService:
     return svc
 
 
-class FakeStore:
-    """Base de los servicios falsos: almacén en memoria con el mismo aislamiento por usuario
-    que los servicios reales (un `id` ajeno, inexistente o inválido responde 404)."""
+def _touch(row: SimpleNamespace, **fields) -> SimpleNamespace:
+    row.__dict__.update(fields, updated_at=dt.datetime.now(tz=dt.timezone.utc))
+    return row
 
-    newest_first = False
 
-    def __init__(self) -> None:
+def _plain(value):
+    """Valor de un Enum como su `value`; el resto tal cual."""
+    return value.value if hasattr(value, "value") else value
+
+
+def _sent_fields(dto, nullable: set[str]) -> dict:
+    """Campos enviados en un PATCH; un `null` sólo se aplica a los campos `nullable`."""
+    sent = dto.model_fields_set
+    if not sent:
+        raise HTTPException(status_code=400, detail=EMPTY_UPDATE_MESSAGE)
+    fields = {field: getattr(dto, field) for field in sent}
+    return {k: _plain(v) for k, v in fields.items() if v is not None or k in nullable}
+
+
+class Visibility:
+    """Reglas de lectura de una tabla: borrado lógico y orden de listado."""
+
+    def __init__(self, soft_delete: bool, newest_first: bool) -> None:
+        self.soft_delete = soft_delete
+        self.newest_first = newest_first
+
+    def sees(self, row: SimpleNamespace, user_id) -> bool:
+        return row.user_id == user_id and (not self.soft_delete or row.is_active)
+
+    def ordered(self, rows: list[SimpleNamespace]) -> list[SimpleNamespace]:
+        return sorted(rows, key=lambda r: r.created_at, reverse=self.newest_first)
+
+
+class RowTable:
+    """Filas en memoria con el mismo aislamiento por usuario que los servicios reales: un `id`
+    ajeno, inexistente o inválido responde 404 (con borrado lógico, las inactivas no se ven)."""
+
+    def __init__(self, visibility: Visibility) -> None:
         self._rows: dict[uuid.UUID, SimpleNamespace] = {}
+        self._visibility = visibility
 
-    def _schema(self, row: SimpleNamespace):
-        raise NotImplementedError
-
-    def _visible(self, row: SimpleNamespace, user_id) -> bool:
-        return row.user_id == user_id
-
-    def _insert(self, user_id, **fields) -> SimpleNamespace:
+    def insert(self, user_id, **fields) -> SimpleNamespace:
         now = dt.datetime.now(tz=dt.timezone.utc)
         row = SimpleNamespace(id=uuid.uuid4(), user_id=user_id, created_at=now, updated_at=now, **fields)
         self._rows[row.id] = row
         return row
 
-    def _list(self, user_id) -> list[SimpleNamespace]:
-        rows = [r for r in self._rows.values() if self._visible(r, user_id)]
-        return sorted(rows, key=lambda r: r.created_at, reverse=self.newest_first)
+    def visible(self, user_id) -> list[SimpleNamespace]:
+        rows = [r for r in self._rows.values() if self._visibility.sees(r, user_id)]
+        return self._visibility.ordered(rows)
 
-    def _touch(self, row: SimpleNamespace, **fields) -> SimpleNamespace:
-        row.__dict__.update(fields, updated_at=dt.datetime.now(tz=dt.timezone.utc))
-        return row
-
-    def _find_owned_or_fail(self, user_id, row_id) -> SimpleNamespace:
+    def find(self, user_id, row_id) -> SimpleNamespace:
         try:
             row = self._rows.get(uuid.UUID(str(row_id)))
         except ValueError:
             row = None
-        if row is None or not self._visible(row, user_id):
+        if row is None or not self._visibility.sees(row, user_id):
             raise HTTPException(status_code=404, detail=_NOT_FOUND_MESSAGE)
         return row
 
+    def delete(self, row: SimpleNamespace) -> None:
+        if self._visibility.soft_delete:
+            _touch(row, is_active=False)
+        else:
+            del self._rows[row.id]
+
+
+class FakeStore:
+    """Base de los servicios falsos: operaciones comunes sobre una `RowTable`."""
+
+    newest_first = False
+    soft_delete = False
+    to_schema: Callable = staticmethod(lambda row: row)
+
+    def __init__(self) -> None:
+        self.table = RowTable(Visibility(self.soft_delete, self.newest_first))
+
+    def _insert(self, user_id, **fields):
+        return self.to_schema(self.table.insert(user_id, **fields))
+
+    def _patch(self, user_id, row_id, **fields):
+        return self.to_schema(_touch(self.table.find(user_id, row_id), **fields))
+
     def list_for_user(self, db, user_id):
-        return [self._schema(r) for r in self._list(user_id)]
+        return [self.to_schema(r) for r in self.table.visible(user_id)]
 
     def get_for_user(self, db, user_id, row_id):
-        return self._schema(self._find_owned_or_fail(user_id, row_id))
+        return self.to_schema(self.table.find(user_id, row_id))
 
     def remove(self, db, user_id, row_id) -> None:
-        del self._rows[self._find_owned_or_fail(user_id, row_id).id]
+        self.table.delete(self.table.find(user_id, row_id))
+
+
+def _account_schema(row) -> AccountSchema:
+    return AccountSchema(
+        id=str(row.id),
+        name=row.name,
+        type=row.type,
+        balance=float(row.balance),
+        created_at=_iso_z(row.created_at),
+        updated_at=_iso_z(row.updated_at),
+    )
 
 
 class FakeAccountsService(FakeStore):
     """Réplica en memoria de las cuentas: borrado lógico (`is_active=False`)."""
 
-    def _visible(self, row, user_id) -> bool:
-        return row.user_id == user_id and row.is_active
-
-    def _schema(self, row) -> AccountSchema:
-        return AccountSchema(
-            id=str(row.id),
-            name=row.name,
-            type=row.type,
-            balance=float(row.balance),
-            created_at=_iso_z(row.created_at),
-            updated_at=_iso_z(row.updated_at),
-        )
+    soft_delete = True
+    to_schema = staticmethod(_account_schema)
 
     def create(self, db, user_id, dto):
-        row = self._insert(
+        return self._insert(
             user_id, name=dto.name, type=dto.type.value, balance=dto.initial_balance, is_active=True
         )
-        return self._schema(row)
 
     def update(self, db, user_id, row_id, dto):
-        row = self._find_owned_or_fail(user_id, row_id)
-        return self._schema(self._touch(row, name=dto.name, type=dto.type.value))
+        return self._patch(user_id, row_id, name=dto.name, type=dto.type.value)
 
-    def remove(self, db, user_id, row_id) -> None:
-        self._touch(self._find_owned_or_fail(user_id, row_id), is_active=False)
+
+def _category_schema(row) -> CategorySchema:
+    return CategorySchema(
+        id=str(row.id),
+        name=row.name,
+        target_amount=float(row.target_amount),
+        color=row.color,
+        icon=row.icon,
+        created_at=_iso_z(row.created_at),
+        updated_at=_iso_z(row.updated_at),
+    )
 
 
 class FakeCategoriesService(FakeStore):
@@ -167,52 +220,38 @@ class FakeCategoriesService(FakeStore):
 
     DEFAULT_COLOR = "#6B7280"
     DEFAULT_ICON = "tag"
-
-    def _schema(self, row) -> CategorySchema:
-        return CategorySchema(
-            id=str(row.id),
-            name=row.name,
-            target_amount=float(row.target_amount),
-            color=row.color,
-            icon=row.icon,
-            created_at=_iso_z(row.created_at),
-            updated_at=_iso_z(row.updated_at),
-        )
+    to_schema = staticmethod(_category_schema)
 
     def create(self, db, user_id, dto):
-        row = self._insert(
+        return self._insert(
             user_id,
             name=dto.name,
             target_amount=dto.target_amount,
             color=dto.color or self.DEFAULT_COLOR,
             icon=dto.icon or self.DEFAULT_ICON,
         )
-        return self._schema(row)
 
     def update(self, db, user_id, row_id, dto):
-        row = self._find_owned_or_fail(user_id, row_id)
         fields = dict(name=dto.name, target_amount=dto.target_amount, color=dto.color, icon=dto.icon)
-        return self._schema(self._touch(row, **fields))
+        return self._patch(user_id, row_id, **fields)
 
 
 class FakeTasksService(FakeStore):
     """Réplica en memoria de las tareas (más recientes primero, con filtros)."""
 
     newest_first = True
-
-    def _schema(self, row):
-        return task_to_response(row)
+    to_schema = staticmethod(task_to_response)
 
     def list_for_user(self, db, user_id, filters):
-        rows = self._list(user_id)
-        if filters.status is not None:
-            rows = [r for r in rows if r.status == filters.status.value]
-        if filters.priority is not None:
-            rows = [r for r in rows if r.priority == filters.priority.value]
-        return [self._schema(r) for r in rows]
+        wanted = {"status": filters.status, "priority": filters.priority}
+        rows = self.table.visible(user_id)
+        for field, value in wanted.items():
+            if value is not None:
+                rows = [r for r in rows if getattr(r, field) == value.value]
+        return [self.to_schema(r) for r in rows]
 
     def create(self, db, user_id, dto):
-        row = self._insert(
+        return self._insert(
             user_id,
             title=dto.title,
             description=dto.description,
@@ -221,48 +260,35 @@ class FakeTasksService(FakeStore):
             due_date=dto.due_date,
             estimated_minutes=dto.estimated_minutes,
         )
-        return self._schema(row)
 
     def update(self, db, user_id, row_id, dto):
-        sent = dto.model_fields_set
-        if not sent:
-            raise HTTPException(status_code=400, detail=EMPTY_UPDATE_MESSAGE)
-        row = self._find_owned_or_fail(user_id, row_id)
-        for field in sent:
-            value = getattr(dto, field)
-            if value is None and field in {"title", "priority", "status"}:
-                continue
-            setattr(row, field, value.value if hasattr(value, "value") else value)
-        return self._schema(self._touch(row))
+        fields = _sent_fields(dto, nullable={"description", "due_date", "estimated_minutes"})
+        return self._patch(user_id, row_id, **fields)
+
+
+def _as_uuid(value):
+    return uuid.UUID(value) if value else None
 
 
 class FakeScheduleService(FakeStore):
     """Réplica en memoria del cronograma: orden por `start_time`, rango válido
     y `task_id` que debe pertenecer al usuario (según `FakeTasksService`)."""
 
-    def __init__(self, tasks: FakeTasksService) -> None:
-        super().__init__()
-        self._tasks = tasks
-
-    def _schema(self, row):
-        return time_block_to_response(row)
-
-    def _assert_owned_task(self, user_id, task_id) -> None:
-        if task_id:
-            self._tasks._find_owned_or_fail(user_id, task_id)
+    to_schema = staticmethod(time_block_to_response)
+    # Tareas del usuario (las asigna el fixture `fake_schedule`).
+    tasks: FakeTasksService
 
     def list_for_user(self, db, user_id, rng):
-        rows = sorted(self._list(user_id), key=lambda r: r.start_time)
-        if rng.start is not None:
-            rows = [r for r in rows if r.end_time > rng.start]
-        if rng.end is not None:
-            rows = [r for r in rows if r.start_time < rng.end]
-        return [self._schema(r) for r in rows]
+        rows = sorted(self.table.visible(user_id), key=lambda r: r.start_time)
+        rows = [r for r in rows if rng.start is None or r.end_time > rng.start]
+        rows = [r for r in rows if rng.end is None or r.start_time < rng.end]
+        return [self.to_schema(r) for r in rows]
 
     def create(self, db, user_id, dto):
         assert_valid_range(dto.start_time, dto.end_time)
-        self._assert_owned_task(user_id, dto.task_id)
-        row = self._insert(
+        if dto.task_id:
+            self.tasks.get_for_user(db, user_id, dto.task_id)
+        return self._insert(
             user_id,
             title=dto.title,
             description=dto.description,
@@ -270,46 +296,32 @@ class FakeScheduleService(FakeStore):
             end_time=dto.end_time,
             actual_duration_minutes=dto.actual_duration_minutes or 0,
             category=(dto.category.value if dto.category else "other"),
-            task_id=uuid.UUID(dto.task_id) if dto.task_id else None,
+            task_id=_as_uuid(dto.task_id),
             is_completed=bool(dto.is_completed),
         )
-        return self._schema(row)
 
     def update(self, db, user_id, row_id, dto):
-        sent = dto.model_fields_set
-        if not sent:
-            raise HTTPException(status_code=400, detail=EMPTY_UPDATE_MESSAGE)
-        row = self._find_owned_or_fail(user_id, row_id)
-        fields = {}
-        for field in sent:
-            value = getattr(dto, field)
-            if value is None and field not in {"description", "task_id"}:
-                continue
-            if field == "task_id":
-                value = uuid.UUID(value) if value else None
-            fields[field] = value.value if hasattr(value, "value") else value
-        assert_valid_range(
-            fields.get("start_time", row.start_time), fields.get("end_time", row.end_time)
-        )
-        self._assert_owned_task(user_id, dto.task_id)
-        return self._schema(self._touch(row, **fields))
+        fields = _sent_fields(dto, nullable={"description", "task_id"})
+        if "task_id" in fields:
+            fields["task_id"] = _as_uuid(fields["task_id"])
+        row = self.table.find(user_id, row_id)
+        assert_valid_range(fields.get("start_time", row.start_time), fields.get("end_time", row.end_time))
+        if dto.task_id:
+            self.tasks.get_for_user(db, user_id, dto.task_id)
+        return self._patch(user_id, row_id, **fields)
 
 
 class FakeNotesService(FakeStore):
     """Réplica en memoria de las notas (más recientes primero)."""
 
     newest_first = True
-
-    def _schema(self, row):
-        return note_to_response(row)
+    to_schema = staticmethod(note_to_response)
 
     def create(self, db, user_id, dto):
-        row = self._insert(user_id, title=dto.title, content=dto.content, audio_url=dto.audio_url)
-        return self._schema(row)
+        return self._insert(user_id, title=dto.title, content=dto.content, audio_url=dto.audio_url)
 
     def update(self, db, user_id, row_id, dto):
-        row = self._find_owned_or_fail(user_id, row_id)
-        return self._schema(self._touch(row, title=dto.title, content=dto.content, audio_url=dto.audio_url))
+        return self._patch(user_id, row_id, title=dto.title, content=dto.content, audio_url=dto.audio_url)
 
 
 def _install(monkeypatch, api_module, name: str, fake):
@@ -343,13 +355,18 @@ def fake_notes(monkeypatch, tmp_path) -> FakeNotesService:
 
 @pytest.fixture
 def fake_schedule(monkeypatch, fake_tasks) -> FakeScheduleService:
-    return _install(monkeypatch, schedule_api, "schedule_service", FakeScheduleService(fake_tasks))
+    svc = FakeScheduleService()
+    svc.tasks = fake_tasks
+    return _install(monkeypatch, schedule_api, "schedule_service", svc)
+
+
+_FAKE_FIXTURES = ("fake_users", "fake_accounts", "fake_categories", "fake_tasks", "fake_notes", "fake_schedule")
 
 
 @pytest.fixture
-def client(
-    fake_users, fake_accounts, fake_categories, fake_tasks, fake_notes, fake_schedule
-) -> TestClient:
+def client(request) -> TestClient:
+    for name in _FAKE_FIXTURES:
+        request.getfixturevalue(name)
     app.dependency_overrides[get_db] = lambda: iter([None])
     with TestClient(app) as c:
         yield c

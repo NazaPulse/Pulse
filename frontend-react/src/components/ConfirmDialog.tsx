@@ -10,6 +10,26 @@ type ConfirmDialogProps = {
   onCancel: () => void
 }
 
+function ConfirmButton({ loading, label, onConfirm }: { loading: boolean; label: string; onConfirm: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onConfirm}
+      disabled={loading}
+      className="inline-flex items-center justify-center gap-2 rounded-lg bg-danger px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-danger-strong focus:outline-none focus:ring-2 focus:ring-danger-soft/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-danger/40 sm:w-36"
+    >
+      {loading ? (
+        <>
+          <Spinner className="h-4 w-4" />
+          Eliminando…
+        </>
+      ) : (
+        label
+      )}
+    </button>
+  )
+}
+
 export function ConfirmDialog(props: ConfirmDialogProps) {
   const { title, description, confirmLabel = 'Eliminar', loading, onConfirm, onCancel } = props
   return (
@@ -24,21 +44,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
         >
           Cancelar
         </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-danger px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-danger-strong focus:outline-none focus:ring-2 focus:ring-danger-soft/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-danger/40 sm:w-36"
-        >
-          {loading ? (
-            <>
-              <Spinner className="h-4 w-4" />
-              Eliminando…
-            </>
-          ) : (
-            confirmLabel
-          )}
-        </button>
+        <ConfirmButton loading={loading} label={confirmLabel} onConfirm={onConfirm} />
       </div>
     </Modal>
   )

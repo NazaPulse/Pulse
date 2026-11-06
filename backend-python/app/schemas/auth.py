@@ -1,5 +1,8 @@
 """Esquemas Pydantic. Espejo 1:1 de los `components.schemas` de openapi.yaml
 y de los DTOs del Backend A (`src/auth/dto/*.ts`).
+
+`extra="forbid"` reproduce `additionalProperties: false` (equivalente al
+`whitelist + forbidNonWhitelisted` del ValidationPipe de NestJS).
 """
 from __future__ import annotations
 
@@ -9,11 +12,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
-    """`RegisterRequest` — cuerpo de `POST /api/auth/register`.
-
-    `extra="forbid"` reproduce `additionalProperties: false` (equivalente al
-    `whitelist + forbidNonWhitelisted` del ValidationPipe de NestJS).
-    """
+    """`RegisterRequest` — cuerpo del registro (`/api/auth/register`)."""
 
     model_config = ConfigDict(extra="forbid")
 

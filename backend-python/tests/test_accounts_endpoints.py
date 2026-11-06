@@ -2,10 +2,7 @@
 `/api/accounts` y `/api/accounts/{id}`: estructuras JSON, tipos, códigos
 HTTP, JWT obligatorio y aislamiento estricto por usuario.
 """
-
-
-def auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+from tests.helpers import auth_headers, pick
 
 
 def test_list_accounts_without_token_returns_401(client):
@@ -33,9 +30,11 @@ def test_create_account_returns_201_with_exact_field_names(client, token_for):
     assert r.status_code == 201
     body = r.json()
     assert set(body.keys()) == {"id", "name", "type", "balance", "created_at", "updated_at"}
-    assert body["name"] == "Cuenta Corriente Santander"
-    assert body["type"] == "bank"
-    assert body["balance"] == 15230.5
+    assert pick(body, "name", "type", "balance") == {
+        "name": "Cuenta Corriente Santander",
+        "type": "bank",
+        "balance": 15230.5,
+    }
 
 
 def test_create_account_defaults_balance_to_zero(client, token_for):
@@ -67,61 +66,69 @@ def test_create_account_extra_property_rejected(client, token_for):
     assert r.status_code == 400
 
 
-def test_list_get_update_delete_roundtrip(client, token_for):
+def _create_cash_account(client, headers) -> dict:
+    return client.post("/api/accounts", json={"name": "Efectivo", "type": "cash"}, headers=headers).json()
+
+
+def test_list_and_get_return_created_account(client, token_for):
     _, token = token_for()
     headers = auth_headers(token)
-
-    created = client.post(
-        "/api/accounts", json={"name": "Efectivo", "type": "cash"}, headers=headers
-    ).json()
-    account_id = created["id"]
+    created = _create_cash_account(client, headers)
 
     listed = client.get("/api/accounts", headers=headers).json()
-    assert [a["id"] for a in listed] == [account_id]
+    assert [a["id"] for a in listed] == [created["id"]]
 
-    fetched = client.get(f"/api/accounts/{account_id}", headers=headers)
+    fetched = client.get(f"/api/accounts/{created['id']}", headers=headers)
     assert fetched.status_code == 200
     assert fetched.json() == created
 
+
+def test_update_account_keeps_balance(client, token_for):
+    _, token = token_for()
+    headers = auth_headers(token)
+    created = _create_cash_account(client, headers)
+
     updated = client.put(
-        f"/api/accounts/{account_id}",
+        f"/api/accounts/{created['id']}",
         json={"name": "Efectivo (renombrado)", "type": "wallet"},
         headers=headers,
     )
     assert updated.status_code == 200
-    assert updated.json()["name"] == "Efectivo (renombrado)"
-    assert updated.json()["type"] == "wallet"
-    assert updated.json()["balance"] == created["balance"]  # balance no editable por PUT
+    # balance no editable por PUT
+    assert pick(updated.json(), "name", "type", "balance") == {
+        "name": "Efectivo (renombrado)",
+        "type": "wallet",
+        "balance": created["balance"],
+    }
+
+
+def test_delete_account_hides_it(client, token_for):
+    _, token = token_for()
+    headers = auth_headers(token)
+    account_id = _create_cash_account(client, headers)["id"]
 
     deleted = client.delete(f"/api/accounts/{account_id}", headers=headers)
-    assert deleted.status_code == 204
-    assert deleted.content == b""
+    assert (deleted.status_code, deleted.content) == (204, b"")
 
     assert client.get(f"/api/accounts/{account_id}", headers=headers).status_code == 404
     assert client.get("/api/accounts", headers=headers).json() == []
 
 
 def test_account_isolated_between_users(client, token_for):
-    owner_id, owner_token = token_for()
+    _, owner_token = token_for()
     _, other_token = token_for()
     owner_headers = auth_headers(owner_token)
     other_headers = auth_headers(other_token)
+    account_id = _create_cash_account(client, owner_headers)["id"]
 
-    created = client.post(
-        "/api/accounts", json={"name": "Efectivo", "type": "cash"}, headers=owner_headers
-    ).json()
-    account_id = created["id"]
-
-    assert client.get(f"/api/accounts/{account_id}", headers=other_headers).status_code == 404
-    assert (
+    statuses = [
+        client.get(f"/api/accounts/{account_id}", headers=other_headers).status_code,
         client.put(
-            f"/api/accounts/{account_id}",
-            json={"name": "x", "type": "cash"},
-            headers=other_headers,
-        ).status_code
-        == 404
-    )
-    assert client.delete(f"/api/accounts/{account_id}", headers=other_headers).status_code == 404
+            f"/api/accounts/{account_id}", json={"name": "x", "type": "cash"}, headers=other_headers
+        ).status_code,
+        client.delete(f"/api/accounts/{account_id}", headers=other_headers).status_code,
+    ]
+    assert statuses == [404, 404, 404]
     assert client.get("/api/accounts", headers=other_headers).json() == []
 
     # El dueño real sigue viendo su cuenta intacta.

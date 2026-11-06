@@ -2,10 +2,7 @@
 `/api/categories` y `/api/categories/{id}`: estructuras JSON, tipos,
 códigos HTTP, JWT obligatorio y aislamiento estricto por usuario.
 """
-
-
-def auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+from tests.helpers import auth_headers, pick
 
 
 def test_list_categories_without_token_returns_401(client):
@@ -36,9 +33,11 @@ def test_create_category_returns_201_with_exact_field_names(client, token_for):
         "created_at",
         "updated_at",
     }
-    assert body["target_amount"] == 500
-    assert body["color"] == "#FF5733"
-    assert body["icon"] == "shopping-cart"
+    assert pick(body, "target_amount", "color", "icon") == {
+        "target_amount": 500,
+        "color": "#FF5733",
+        "icon": "shopping-cart",
+    }
 
 
 def test_create_category_without_color_icon_uses_defaults(client, token_for):
@@ -50,8 +49,9 @@ def test_create_category_without_color_icon_uses_defaults(client, token_for):
     )
     assert r.status_code == 201
     body = r.json()
-    assert body["color"] and isinstance(body["color"], str)
-    assert body["icon"] and isinstance(body["icon"], str)
+    defaults = [body["color"], body["icon"]]
+    assert all(isinstance(value, str) for value in defaults)
+    assert all(defaults)
 
 
 def test_create_category_invalid_color_returns_400(client, token_for):
@@ -117,16 +117,16 @@ def test_category_isolated_between_users(client, token_for):
     ).json()
     category_id = created["id"]
 
-    assert client.get(f"/api/categories/{category_id}", headers=other_headers).status_code == 404
-    assert (
+    statuses = [
+        client.get(f"/api/categories/{category_id}", headers=other_headers).status_code,
         client.put(
             f"/api/categories/{category_id}",
             json={"name": "x", "target_amount": 1, "color": "#000000", "icon": "x"},
             headers=other_headers,
-        ).status_code
-        == 404
-    )
-    assert client.delete(f"/api/categories/{category_id}", headers=other_headers).status_code == 404
+        ).status_code,
+        client.delete(f"/api/categories/{category_id}", headers=other_headers).status_code,
+    ]
+    assert statuses == [404, 404, 404]
     assert client.get("/api/categories", headers=other_headers).json() == []
 
     assert client.get(f"/api/categories/{category_id}", headers=owner_headers).status_code == 200

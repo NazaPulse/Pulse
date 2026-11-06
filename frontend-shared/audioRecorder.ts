@@ -46,15 +46,18 @@ export function initialRecorderSnapshot(): RecorderSnapshot {
   }
 }
 
+const GENERIC_MEDIA_ERROR = 'No se pudo acceder al micrófono.'
+const PERMISSION_DENIED_MESSAGE = 'Permiso de micrófono denegado. Habilitalo desde la configuración del navegador.'
+const MEDIA_ERROR_MESSAGES = new Map([
+  ['NotAllowedError', PERMISSION_DENIED_MESSAGE],
+  ['SecurityError', PERMISSION_DENIED_MESSAGE],
+  ['NotFoundError', 'No se encontró ningún micrófono.'],
+  ['NotReadableError', 'El micrófono está siendo usado por otra aplicación.'],
+])
+
 export function describeMediaError(error: unknown): string {
-  if (error instanceof DOMException) {
-    if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
-      return 'Permiso de micrófono denegado. Habilitalo desde la configuración del navegador.'
-    }
-    if (error.name === 'NotFoundError') return 'No se encontró ningún micrófono.'
-    if (error.name === 'NotReadableError') return 'El micrófono está siendo usado por otra aplicación.'
-  }
-  return 'No se pudo acceder al micrófono.'
+  const known = error instanceof DOMException ? MEDIA_ERROR_MESSAGES.get(error.name) : undefined
+  return known ?? GENERIC_MEDIA_ERROR
 }
 
 export function permissionFromError(error: unknown): MicPermission {
@@ -75,37 +78,100 @@ export function levelFromSamples(samples: Uint8Array): number {
   return Math.min(1, Math.sqrt(sum / samples.length) * 4)
 }
 
+/** Primer formato de {@link MIME_CANDIDATES} que soporta el navegador (o el que elija `MediaRecorder`). */
+const supportedMimeType = () => MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type))
+
+const blobType = (recorder: MediaRecorder, mimeType: string | undefined) => recorder.mimeType || mimeType || 'audio/webm'
+
+/** Permiso `microphone` si el navegador lo expone (Chrome, Firefox); `null` si no es consultable (Safari). */
+async function queryMicPermission(): Promise<PermissionStatus | null> {
+  if (!navigator.permissions?.query) return null
+  try {
+    return await navigator.permissions.query({ name: 'microphone' as PermissionName })
+  } catch {
+    return null
+  }
+}
+
+/** Reporta el tiempo transcurrido desde `startedAt` cada {@link TICK_MS}; al llegar al máximo llama a `onLimit`. */
+function startElapsedTicker(startedAt: number, onElapsed: (elapsedMs: number) => void, onLimit: () => void): number {
+  return window.setInterval(() => {
+    const elapsed = Date.now() - startedAt
+    onElapsed(elapsed)
+    if (elapsed >= MAX_RECORDING_MS) onLimit()
+  }, TICK_MS)
+}
+
+function stopTracks(stream: MediaStream | null): void {
+  stream?.getTracks().forEach((track) => track.stop())
+}
+
+/** Medidor del nivel de entrada con un `AnalyserNode`; sin Web Audio queda en 0 y la grabación funciona igual. */
+class LevelMeter {
+  private context: AudioContext | null = null
+  private frame: number | null = null
+
+  start(media: MediaStream, onLevel: (level: number) => void): void {
+    try {
+      const context = new AudioContext()
+      const analyser = context.createAnalyser()
+      analyser.fftSize = 512
+      context.createMediaStreamSource(media).connect(analyser)
+      this.context = context
+      const samples = new Uint8Array(analyser.fftSize)
+      const measure = () => {
+        analyser.getByteTimeDomainData(samples)
+        onLevel(levelFromSamples(samples))
+        this.frame = requestAnimationFrame(measure)
+      }
+      measure()
+    } catch {
+      /* sin Web Audio: nivel en 0 */
+    }
+  }
+
+  /** Deja de medir (el contexto sigue abierto hasta `close`). */
+  pause(): void {
+    if (this.frame !== null) cancelAnimationFrame(this.frame)
+    this.frame = null
+  }
+
+  close(): void {
+    void this.context?.close().catch(() => undefined)
+    this.context = null
+  }
+}
+
+/**
+ * Grabación de una nota de voz. `watchPermission` refleja el estado del permiso cuando el
+ * navegador lo expone y `requestPermission` lo solicita sin empezar a grabar. Al desmontar
+ * (`dispose`) se descarta cualquier grabación en curso.
+ */
 export class AudioRecorder {
   private recorder: MediaRecorder | null = null
   private stream: MediaStream | null = null
-  private audioContext: AudioContext | null = null
   private permissionStatus: PermissionStatus | null = null
   private chunks: Blob[] = []
   private startedAt = 0
   private tick: number | null = null
-  private frame: number | null = null
   private discard = false
+  private readonly meter = new LevelMeter()
   private readonly events: RecorderEvents
 
   constructor(events: RecorderEvents) {
     this.events = events
   }
 
-  /** Refleja el estado del permiso si el navegador lo expone (Chrome, Firefox). */
   async watchPermission(): Promise<void> {
-    if (!isRecordingSupported() || !navigator.permissions?.query) return
-    try {
-      const result = await navigator.permissions.query({ name: 'microphone' as PermissionName })
-      this.permissionStatus = result
-      const sync = () => this.events.onChange({ permission: permissionFromState(result.state) })
-      sync()
-      result.onchange = sync
-    } catch {
-      /* `microphone` no es consultable en este navegador (Safari): se pregunta al grabar. */
-    }
+    if (!isRecordingSupported()) return
+    const result = await queryMicPermission()
+    if (!result) return
+    this.permissionStatus = result
+    const sync = () => this.events.onChange({ permission: permissionFromState(result.state) })
+    sync()
+    result.onchange = sync
   }
 
-  /** Solicita el permiso del micrófono sin empezar a grabar. */
   async requestPermission(): Promise<boolean> {
     if (!isRecordingSupported()) return false
     this.events.onChange({ error: null, status: 'requesting' })
@@ -115,7 +181,7 @@ export class AudioRecorder {
       this.events.onChange({ permission: 'granted', status: 'idle' })
       return true
     } catch (err) {
-      this.events.onChange({ permission: permissionFromError(err), error: describeMediaError(err), status: 'idle' })
+      this.reportMediaError(err)
       return false
     }
   }
@@ -138,16 +204,15 @@ export class AudioRecorder {
         audio: { echoCancellation: true, noiseSuppression: true },
       })
     } catch (err) {
-      this.events.onChange({ permission: permissionFromError(err), error: describeMediaError(err), status: 'idle' })
+      this.reportMediaError(err)
       return
     }
     this.stream = media
     this.events.onChange({ permission: 'granted' })
     this.beginRecording(media)
-    this.startLevelMeter(media)
+    this.meter.start(media, (level) => this.events.onChange({ level }))
   }
 
-  /** Al desmontar se descarta cualquier grabación en curso. */
   dispose(): void {
     if (this.permissionStatus) this.permissionStatus.onchange = null
     this.discard = true
@@ -155,8 +220,12 @@ export class AudioRecorder {
     this.releaseResources()
   }
 
+  private reportMediaError(err: unknown): void {
+    this.events.onChange({ permission: permissionFromError(err), error: describeMediaError(err), status: 'idle' })
+  }
+
   private beginRecording(media: MediaStream): void {
-    const mimeType = MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type))
+    const mimeType = supportedMimeType()
     const recorder = new MediaRecorder(media, mimeType ? { mimeType } : undefined)
     this.recorder = recorder
     this.chunks = []
@@ -167,53 +236,34 @@ export class AudioRecorder {
     }
     recorder.onstop = () => {
       const durationMs = Date.now() - this.startedAt
-      const blob = new Blob(this.chunks, { type: recorder.mimeType || mimeType || 'audio/webm' })
-      this.chunks = []
-      this.recorder = null
-      this.releaseResources()
-      this.events.onChange({ status: 'idle' })
-      if (!this.discard && blob.size > 0) this.events.onRecorded(blob, durationMs)
+      this.finish(new Blob(this.chunks, { type: blobType(recorder, mimeType) }), durationMs)
     }
 
     this.startedAt = Date.now()
     recorder.start(1000)
     this.events.onChange({ elapsedMs: 0, status: 'recording' })
-    this.tick = window.setInterval(() => {
-      const elapsed = Date.now() - this.startedAt
-      this.events.onChange({ elapsedMs: elapsed })
-      if (elapsed >= MAX_RECORDING_MS) this.stop()
-    }, TICK_MS)
+    this.tick = startElapsedTicker(
+      this.startedAt,
+      (elapsedMs) => this.events.onChange({ elapsedMs }),
+      () => this.stop(),
+    )
   }
 
-  /** Medidor de nivel de entrada; sin Web Audio queda en 0 y la grabación funciona igual. */
-  private startLevelMeter(media: MediaStream): void {
-    try {
-      const context = new AudioContext()
-      const analyser = context.createAnalyser()
-      analyser.fftSize = 512
-      context.createMediaStreamSource(media).connect(analyser)
-      this.audioContext = context
-      const samples = new Uint8Array(analyser.fftSize)
-      const measure = () => {
-        analyser.getByteTimeDomainData(samples)
-        this.events.onChange({ level: levelFromSamples(samples) })
-        this.frame = requestAnimationFrame(measure)
-      }
-      measure()
-    } catch {
-      /* sin Web Audio: nivel en 0 */
-    }
+  private finish(blob: Blob, durationMs: number): void {
+    this.chunks = []
+    this.recorder = null
+    this.releaseResources()
+    this.events.onChange({ status: 'idle' })
+    if (!this.discard && blob.size > 0) this.events.onRecorded(blob, durationMs)
   }
 
   private releaseResources(): void {
     if (this.tick !== null) window.clearInterval(this.tick)
-    if (this.frame !== null) cancelAnimationFrame(this.frame)
     this.tick = null
-    this.frame = null
-    this.stream?.getTracks().forEach((track) => track.stop())
+    this.meter.pause()
+    stopTracks(this.stream)
     this.stream = null
-    void this.audioContext?.close().catch(() => undefined)
-    this.audioContext = null
+    this.meter.close()
     this.events.onChange({ level: 0 })
   }
 }

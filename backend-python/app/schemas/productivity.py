@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic_core import PydanticCustomError
 
-from app.schemas.transaction import _ISO_8601, parse_iso_datetime
+from app.schemas.transaction import _ISO_8601, as_number, parse_iso_datetime
 
 TITLE_MAX_LENGTH = 200
 TASK_DESCRIPTION_MAX_LENGTH = 1000
@@ -120,19 +120,23 @@ ESTIMATED_MINUTES_MIN = 5
 ESTIMATED_MINUTES_MAX = 1440
 
 
+def _estimated_minutes_errors(v: Any) -> list[str]:
+    """Mensajes de `@IsInt()` + `@Min(5)` + `@Max(1440)` que fallan, en el orden de
+    `class-validator` (Max, Min, IsInt)."""
+    n = as_number(v)
+    failures = {
+        f"estimated_minutes must not be greater than {ESTIMATED_MINUTES_MAX}": n is None or n > ESTIMATED_MINUTES_MAX,
+        f"estimated_minutes must not be less than {ESTIMATED_MINUTES_MIN}": n is None or n < ESTIMATED_MINUTES_MIN,
+        "estimated_minutes must be an integer number": n is None or not float(n).is_integer(),
+    }
+    return [message for message, failed in failures.items() if failed]
+
+
 def _estimated_minutes(v: Any) -> int | None:
-    """`@IsInt()` + `@Min(5)` + `@Max(1440)`: reporta todos los que fallan, en el
-    orden de `class-validator` (Max, Min, IsInt)."""
+    """`@IsInt()` + `@Min(5)` + `@Max(1440)`: reporta todos los que fallan."""
     if v is None:
         return None
-    is_number = isinstance(v, (int, float)) and not isinstance(v, bool)
-    messages = []
-    if not is_number or v > ESTIMATED_MINUTES_MAX:
-        messages.append(f"estimated_minutes must not be greater than {ESTIMATED_MINUTES_MAX}")
-    if not is_number or v < ESTIMATED_MINUTES_MIN:
-        messages.append(f"estimated_minutes must not be less than {ESTIMATED_MINUTES_MIN}")
-    if not (is_number and float(v).is_integer()):
-        messages.append("estimated_minutes must be an integer number")
+    messages = _estimated_minutes_errors(v)
     if messages:
         raise PydanticCustomError("estimated_minutes", messages[0], {"messages": messages})
     return int(v)

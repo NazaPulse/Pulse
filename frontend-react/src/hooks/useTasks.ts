@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 
 import * as tasksLogic from '@shared/tasks'
 import type { TaskView } from '@shared/tasks'
@@ -11,20 +12,15 @@ import { useNow } from './useNow'
 const NO_TASKS: Task[] = []
 const loadTasks = () => api.getTasks()
 
-/** Estado de la pantalla de Tareas: lista, filtros, cambios optimistas y baja confirmada. */
-export function useTasks() {
-  const { data: tasks, setData: setTasks, loading, error, setError } = useLoader(loadTasks, NO_TASKS, tasksLogic.TASK_LOAD_ERROR)
-  const [view, setView] = useState<TaskView>(tasksLogic.DEFAULT_TASK_VIEW)
-  const [togglingIds, setTogglingIds] = useState<ReadonlySet<string>>(new Set())
-  const now = useNow(60_000)
-  const confirmDelete = useConfirmDelete<Task>({
-    remove: (task) => api.deleteTask(task.id),
-    onRemoved: (task) => setTasks((prev) => tasksLogic.removeTask(prev, task.id)),
-    onError: setError,
-    errorMessage: tasksLogic.TASK_DELETE_ERROR,
-  })
+type TasksSetter = Dispatch<SetStateAction<Task[]>>
 
-  // Actualización optimista: la UI cambia al instante y se revierte si la API falla.
+/**
+ * Cambio de estado optimista: la UI cambia al instante y se revierte si la API falla. Mientras
+ * dura, el id queda en `togglingIds`.
+ */
+function useTaskToggle(setTasks: TasksSetter, setError: (message: string | null) => void) {
+  const [togglingIds, setTogglingIds] = useState<ReadonlySet<string>>(new Set())
+
   async function toggle(task: Task) {
     if (togglingIds.has(task.id)) return
     const status = tasksLogic.nextStatus(task)
@@ -42,19 +38,46 @@ export function useTasks() {
     }
   }
 
+  return { togglingIds, toggle }
+}
+
+/** Lista visible según los filtros, contadores por estado y mensaje de lista vacía. */
+const listView = (tasks: Task[], view: TaskView) => ({
+  visible: tasksLogic.visibleTasks(tasks, view),
+  counts: tasksLogic.taskCounts(tasks, view.priority),
+  emptyMessage: tasksLogic.emptyTasksMessage(view),
+})
+
+/** Baja confirmada: al eliminar se quita de la lista; un error se muestra en la pantalla. */
+function useTaskDelete(setTasks: TasksSetter, setError: (message: string | null) => void) {
+  return useConfirmDelete<Task>({
+    remove: (task) => api.deleteTask(task.id),
+    onRemoved: (task) => setTasks((prev) => tasksLogic.removeTask(prev, task.id)),
+    onError: setError,
+    errorMessage: tasksLogic.TASK_DELETE_ERROR,
+  })
+}
+
+/** Estado de la pantalla de Tareas: lista, filtros, cambios optimistas y baja confirmada. */
+export function useTasks() {
+  const loader = useLoader(loadTasks, NO_TASKS, tasksLogic.TASK_LOAD_ERROR)
+  const { data: tasks, setData: setTasks, setError } = loader
+  const [view, setView] = useState<TaskView>(tasksLogic.DEFAULT_TASK_VIEW)
+  const { togglingIds, toggle } = useTaskToggle(setTasks, setError)
+  const now = useNow(60_000)
+  const confirmDelete = useTaskDelete(setTasks, setError)
+
   async function create(values: CreateTaskDTO) {
     const created = await api.createTask(values)
     setTasks((prev) => tasksLogic.addTask(prev, created))
   }
 
   return {
-    visible: tasksLogic.visibleTasks(tasks, view),
-    counts: tasksLogic.taskCounts(tasks, view.priority),
-    emptyMessage: tasksLogic.emptyTasksMessage(view),
+    ...listView(tasks, view),
     view,
     changeView: (patch: Partial<TaskView>) => setView((prev) => ({ ...prev, ...patch })),
-    loading,
-    error,
+    loading: loader.loading,
+    error: loader.error,
     togglingIds,
     now,
     toggle,

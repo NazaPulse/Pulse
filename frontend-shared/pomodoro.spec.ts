@@ -46,7 +46,9 @@ describe('transiciones del reloj', () => {
     expect(progressOf(running, 5 * MINUTE)).toBeCloseTo(0.2)
     expect(remainingMs(running, 99 * MINUTE)).toBe(0)
   })
+})
 
+describe('transiciones del reloj', () => {
   it('cambiar de modo reinicia el reloj pero conserva los bloques completados', () => {
     const state: TimerState = { ...INITIAL_TIMER_STATE, accumulatedMs: 4_000, completedWorkSessions: 2 }
     expect(selectTimerMode(state, 'short_break')).toEqual({

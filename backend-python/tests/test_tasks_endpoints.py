@@ -4,14 +4,12 @@ validación de `due_date`, JWT obligatorio y aislamiento por usuario.
 """
 import datetime as dt
 
+from tests.helpers import auth_headers, pick
+
 TASK_KEYS = {
     "id", "title", "description", "priority", "status",
     "due_date", "estimated_minutes", "user_id", "created_at", "updated_at",
 }
-
-
-def auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
 
 
 def future_iso(days: int = 3) -> str:
@@ -31,11 +29,13 @@ def test_create_task_applies_defaults_and_exact_shape(client, token_for):
     assert r.status_code == 201
     body = r.json()
     assert set(body) == TASK_KEYS
-    assert body["priority"] == "medium"
-    assert body["status"] == "pending"
-    assert body["description"] is None
-    assert body["due_date"] is None
-    assert body["user_id"] == str(uid)
+    assert pick(body, "priority", "status", "description", "due_date", "user_id") == {
+        "priority": "medium",
+        "status": "pending",
+        "description": None,
+        "due_date": None,
+        "user_id": str(uid),
+    }
 
 
 def test_create_task_with_future_due_date(client, token_for):
@@ -132,16 +132,17 @@ def test_patch_and_put_update_partially(client, token_for):
 
     r = client.patch(f"/api/tasks/{created['id']}", json={"status": "completed"}, headers=h)
     assert r.status_code == 200
-    assert r.json()["status"] == "completed"
-    assert r.json()["description"] == "d"
+    assert pick(r.json(), "status", "description") == {"status": "completed", "description": "d"}
 
     r = client.put(
         f"/api/tasks/{created['id']}", json={"description": None, "due_date": None}, headers=h
     )
     assert r.status_code == 200
-    assert r.json()["description"] is None
-    assert r.json()["due_date"] is None
-    assert r.json()["title"] == "T"
+    assert pick(r.json(), "description", "due_date", "title") == {
+        "description": None,
+        "due_date": None,
+        "title": "T",
+    }
 
 
 def test_update_with_empty_body_returns_400(client, token_for):
@@ -161,13 +162,12 @@ def test_other_users_task_is_not_found(client, token_for):
 
     for method in ("get", "delete"):
         r = getattr(client, method)(f"/api/tasks/{created['id']}", headers=auth_headers(intruder))
-        assert r.status_code == 404
-        assert r.json() == not_found
-    r = client.patch(
-        f"/api/tasks/{created['id']}", json={"title": "x"}, headers=auth_headers(intruder)
-    )
-    assert r.status_code == 404
-    assert client.get("/api/tasks/no-es-uuid", headers=auth_headers(owner)).status_code == 404
+        assert (r.status_code, r.json()) == (404, not_found)
+    statuses = [
+        client.patch(f"/api/tasks/{created['id']}", json={"title": "x"}, headers=auth_headers(intruder)).status_code,
+        client.get("/api/tasks/no-es-uuid", headers=auth_headers(owner)).status_code,
+    ]
+    assert statuses == [404, 404]
 
 
 def test_delete_task_returns_204(client, token_for):
@@ -180,16 +180,18 @@ def test_delete_task_returns_204(client, token_for):
     assert client.get(f"/api/tasks/{created['id']}", headers=h).status_code == 404
 
 
-def test_estimated_minutes_roundtrip_and_validation(client, token_for):
+def test_estimated_minutes_roundtrip(client, token_for):
     _, token = token_for()
     r = client.post("/api/tasks", json={"title": "T", "estimated_minutes": 90}, headers=auth_headers(token))
-    assert r.status_code == 201
-    assert r.json()["estimated_minutes"] == 90
+    assert (r.status_code, r.json()["estimated_minutes"]) == (201, 90)
 
     url = f"/api/tasks/{r.json()['id']}"
     r = client.patch(url, json={"estimated_minutes": None}, headers=auth_headers(token))
     assert r.json()["estimated_minutes"] is None
 
+
+def test_estimated_minutes_validation(client, token_for):
+    _, token = token_for()
     r = client.post("/api/tasks", json={"title": "T", "estimated_minutes": "x"}, headers=auth_headers(token))
     assert r.status_code == 400
     assert r.json()["message"] == [

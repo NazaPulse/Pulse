@@ -1,5 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Category } from '../../models/category.entity';
+import { Field } from '../../common/decorators/field.decorator';
+
+/** Validación y documentación Swagger de cada campo. */
+const fields = {
+  id: Field(ApiProperty({ format: 'uuid', example: '3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b' })),
+  name: Field(ApiProperty({ maxLength: 100, example: 'Supermercado' })),
+  target_amount: Field(ApiProperty({ format: 'float', example: 500 })),
+  color: Field(ApiProperty({ pattern: '^#[0-9A-Fa-f]{6}$', example: '#FF5733' })),
+  icon: Field(ApiProperty({ maxLength: 50, example: 'shopping-cart' })),
+  created_at: Field(ApiProperty({ format: 'date-time', example: '2026-08-28T14:06:00.000Z' })),
+  updated_at: Field(ApiProperty({ format: 'date-time', example: '2026-08-28T14:06:00.000Z' })),
+};
 
 /**
  * Respuesta de las rutas de Categorías/Sobres. Espejo exacto de `Category`
@@ -8,25 +20,25 @@ import { Category } from '../../models/category.entity';
  * cliente no los envía).
  */
 export class CategoryResponseDto {
-  @ApiProperty({ format: 'uuid', example: '3c4d5e6f-7081-4293-a4b5-c6d7e8f90a1b' })
+  @fields.id
   id!: string;
 
-  @ApiProperty({ maxLength: 100, example: 'Supermercado' })
+  @fields.name
   name!: string;
 
-  @ApiProperty({ format: 'float', example: 500 })
+  @fields.target_amount
   target_amount!: number;
 
-  @ApiProperty({ pattern: '^#[0-9A-Fa-f]{6}$', example: '#FF5733' })
+  @fields.color
   color!: string;
 
-  @ApiProperty({ maxLength: 50, example: 'shopping-cart' })
+  @fields.icon
   icon!: string;
 
-  @ApiProperty({ format: 'date-time', example: '2026-08-28T14:06:00.000Z' })
+  @fields.created_at
   created_at!: string;
 
-  @ApiProperty({ format: 'date-time', example: '2026-08-28T14:06:00.000Z' })
+  @fields.updated_at
   updated_at!: string;
 
   static fromEntity(category: Category): CategoryResponseDto {

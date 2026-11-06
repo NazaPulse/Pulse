@@ -9,6 +9,26 @@ type AccountListProps = {
   onDelete: (account: Account) => void
 }
 
+type AccountItemProps = { account: Account; onEdit: (account: Account) => void; onDelete: (account: Account) => void }
+
+function AccountItem({ account, onEdit, onDelete }: AccountItemProps) {
+  return (
+    <li className="flex items-center justify-between gap-3 pulse-card p-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5 text-lg">
+          {ACCOUNT_TYPE_ICON[account.type]}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-fg">{account.name}</p>
+          <p className="text-xs text-fg-muted">{ACCOUNT_TYPE_LABEL[account.type]}</p>
+          <p className="mt-0.5 text-base font-semibold text-fg">{currencyFormatter.format(account.balance)}</p>
+        </div>
+      </div>
+      <RowActions name={account.name} onEdit={() => onEdit(account)} onDelete={() => onDelete(account)} />
+    </li>
+  )
+}
+
 export function AccountList({ accounts, onEdit, onDelete }: AccountListProps) {
   if (accounts.length === 0) {
     return (
@@ -21,19 +41,7 @@ export function AccountList({ accounts, onEdit, onDelete }: AccountListProps) {
   return (
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {accounts.map((account) => (
-        <li key={account.id} className="flex items-center justify-between gap-3 pulse-card p-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5 text-lg">
-              {ACCOUNT_TYPE_ICON[account.type]}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-fg">{account.name}</p>
-              <p className="text-xs text-fg-muted">{ACCOUNT_TYPE_LABEL[account.type]}</p>
-              <p className="mt-0.5 text-base font-semibold text-fg">{currencyFormatter.format(account.balance)}</p>
-            </div>
-          </div>
-          <RowActions name={account.name} onEdit={() => onEdit(account)} onDelete={() => onDelete(account)} />
-        </li>
+        <AccountItem key={account.id} account={account} onEdit={onEdit} onDelete={onDelete} />
       ))}
     </ul>
   )

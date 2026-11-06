@@ -12,29 +12,15 @@ interface DashboardModalsOptions {
   onError: (message: string) => void
 }
 
-export function useDashboardModals({ reload, onError }: DashboardModalsOptions) {
+type Reload = () => Promise<void>
+
+function useAccountModal(reload: Reload) {
   const accountModalOpen = ref(false)
   const editingAccount = ref<Account | null>(null)
-  const categoryModalOpen = ref(false)
-  const editingCategory = ref<Category | null>(null)
-  const transactionModalOpen = ref(false)
-  const confirmDelete = useConfirmDelete<DeleteTarget>({
-    remove: (target) => removeTarget(api, target),
-    onRemoved: reload,
-    onError,
-    errorMessage: DELETE_ERROR,
-  })
-
   function closeAccountModal() {
     accountModalOpen.value = false
     editingAccount.value = null
   }
-
-  function closeCategoryModal() {
-    categoryModalOpen.value = false
-    editingCategory.value = null
-  }
-
   return {
     accountModalOpen,
     editingAccount,
@@ -48,6 +34,17 @@ export function useDashboardModals({ reload, onError }: DashboardModalsOptions) 
       closeAccountModal()
       await reload()
     },
+  }
+}
+
+function useCategoryModal(reload: Reload) {
+  const categoryModalOpen = ref(false)
+  const editingCategory = ref<Category | null>(null)
+  function closeCategoryModal() {
+    categoryModalOpen.value = false
+    editingCategory.value = null
+  }
+  return {
     categoryModalOpen,
     editingCategory,
     openCategoryModal(category: Category | null = null) {
@@ -60,6 +57,12 @@ export function useDashboardModals({ reload, onError }: DashboardModalsOptions) 
       closeCategoryModal()
       await reload()
     },
+  }
+}
+
+function useTransactionModal(reload: Reload) {
+  const transactionModalOpen = ref(false)
+  return {
     transactionModalOpen,
     setTransactionModalOpen(open: boolean) {
       transactionModalOpen.value = open
@@ -69,6 +72,24 @@ export function useDashboardModals({ reload, onError }: DashboardModalsOptions) 
       transactionModalOpen.value = false
       await reload()
     },
+  }
+}
+
+export function useDashboardModals({ reload, onError }: DashboardModalsOptions) {
+  const accounts = useAccountModal(reload)
+  const categories = useCategoryModal(reload)
+  const transactions = useTransactionModal(reload)
+  const confirmDelete = useConfirmDelete<DeleteTarget>({
+    remove: (target) => removeTarget(api, target),
+    onRemoved: reload,
+    onError,
+    errorMessage: DELETE_ERROR,
+  })
+
+  return {
+    ...accounts,
+    ...categories,
+    ...transactions,
     deleteTarget: confirmDelete.target,
     setDeleteTarget: confirmDelete.setTarget,
     deleting: confirmDelete.deleting,

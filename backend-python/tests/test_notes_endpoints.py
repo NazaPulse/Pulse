@@ -2,12 +2,9 @@
 `/api/notes`, `/api/notes/upload-audio` y `/api/notes/{id}`.
 """
 from app.services import notes as notes_module
+from tests.helpers import auth_headers, pick
 
 NOTE_KEYS = {"id", "title", "content", "audio_url", "user_id", "created_at", "updated_at"}
-
-
-def auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
 
 
 def test_notes_require_jwt(client):
@@ -16,16 +13,19 @@ def test_notes_require_jwt(client):
     assert r.status_code == 401
 
 
-def test_note_crud_roundtrip(client, token_for):
+def test_create_note_returns_exact_shape(client, token_for):
     uid, token = token_for()
-    h = auth_headers(token)
-
-    r = client.post("/api/notes", json={"title": "Ideas", "content": "Revisar"}, headers=h)
+    r = client.post("/api/notes", json={"title": "Ideas", "content": "Revisar"}, headers=auth_headers(token))
     assert r.status_code == 201
     note = r.json()
     assert set(note) == NOTE_KEYS
-    assert note["audio_url"] is None
-    assert note["user_id"] == str(uid)
+    assert pick(note, "audio_url", "user_id") == {"audio_url": None, "user_id": str(uid)}
+
+
+def test_note_crud_roundtrip(client, token_for):
+    _, token = token_for()
+    h = auth_headers(token)
+    note = client.post("/api/notes", json={"title": "Ideas", "content": "Revisar"}, headers=h).json()
 
     assert client.get(f"/api/notes/{note['id']}", headers=h).json()["title"] == "Ideas"
     assert len(client.get("/api/notes", headers=h).json()) == 1
@@ -34,12 +34,16 @@ def test_note_crud_roundtrip(client, token_for):
     r = client.put(
         f"/api/notes/{note['id']}", json={"title": "Nueva", "audio_url": "/uploads/audio/x.webm"}, headers=h
     )
-    assert r.status_code == 200
-    assert r.json()["content"] is None
-    assert r.json()["audio_url"] == "/uploads/audio/x.webm"
+    assert (r.status_code, pick(r.json(), "content", "audio_url")) == (
+        200,
+        {"content": None, "audio_url": "/uploads/audio/x.webm"},
+    )
 
-    assert client.delete(f"/api/notes/{note['id']}", headers=h).status_code == 204
-    assert client.get(f"/api/notes/{note['id']}", headers=h).status_code == 404
+    statuses = [
+        client.delete(f"/api/notes/{note['id']}", headers=h).status_code,
+        client.get(f"/api/notes/{note['id']}", headers=h).status_code,
+    ]
+    assert statuses == [204, 404]
 
 
 def test_create_note_validation_messages(client, token_for):
@@ -86,9 +90,9 @@ def test_upload_audio_saves_file_and_returns_audio_url(client, token_for):
     assert r.status_code == 201
     body = r.json()
     assert list(body) == ["audio_url"]
-    assert body["audio_url"].startswith("/uploads/audio/")
-    assert body["audio_url"].endswith(".webm")
-    saved = notes_module.AUDIO_UPLOAD_DIR / body["audio_url"].rsplit("/", 1)[1]
+    folder, _, filename = body["audio_url"].rpartition("/")
+    assert (folder, filename.rsplit(".", 1)[-1]) == ("/uploads/audio", "webm")
+    saved = notes_module.AUDIO_UPLOAD_DIR / filename
     assert saved.read_bytes() == b"OggS-fake-audio"
 
 

@@ -13,14 +13,34 @@ import type { Note } from '../types/productivity'
 const NO_NOTES: Note[] = []
 const loadNotes = () => api.getNotes()
 
-export function NotesPage() {
+function NotesList({ notes, loading, onDelete }: { notes: Note[]; loading: boolean; onDelete: (note: Note) => void }) {
+  if (loading) return <LoadingBlock />
+  if (notes.length === 0) {
+    return <div className="mt-6 pulse-empty px-6 py-10 text-center text-sm text-fg-muted">{emptyNotesMessage}</div>
+  }
+  return (
+    <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      {notes.map((note) => (
+        <NoteCard key={note.id} note={note} onDelete={onDelete} />
+      ))}
+    </div>
+  )
+}
+
+function useNotes() {
   const { data: notes, setData: setNotes, loading, error, setError } = useLoader(loadNotes, NO_NOTES, NOTES_LOAD_ERROR)
-  const { target, setTarget, deleting, confirm } = useConfirmDelete<Note>({
+  const confirmDelete = useConfirmDelete<Note>({
     remove: (note) => api.deleteNote(note.id),
     onRemoved: (note) => setNotes((prev) => prev.filter((n) => n.id !== note.id)),
     onError: setError,
     errorMessage: NOTE_DELETE_ERROR,
   })
+  return { notes, setNotes, loading, error, confirmDelete }
+}
+
+export function NotesPage() {
+  const { notes, setNotes, loading, error, confirmDelete } = useNotes()
+  const { target, setTarget } = confirmDelete
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:py-10">
@@ -35,25 +55,14 @@ export function NotesPage() {
       </div>
 
       <ErrorNotice message={error} />
-
-      {loading ? (
-        <LoadingBlock />
-      ) : notes.length === 0 ? (
-        <div className="mt-6 pulse-empty px-6 py-10 text-center text-sm text-fg-muted">{emptyNotesMessage}</div>
-      ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {notes.map((note) => (
-            <NoteCard key={note.id} note={note} onDelete={setTarget} />
-          ))}
-        </div>
-      )}
+      <NotesList notes={notes} loading={loading} onDelete={setTarget} />
 
       {target ? (
         <ConfirmDialog
           title="Eliminar nota"
           description={deleteDialogDescriptionFor(target.title)}
-          loading={deleting}
-          onConfirm={confirm}
+          loading={confirmDelete.deleting}
+          onConfirm={confirmDelete.confirm}
           onCancel={() => setTarget(null)}
         />
       ) : null}

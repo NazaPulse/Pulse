@@ -1,38 +1,57 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { TimeBlock, TimeBlockCategory } from '../../models/time-block.entity';
+import { Field } from '../../common/decorators/field.decorator';
+
+/** Validación y documentación Swagger de cada campo. */
+const fields = {
+  id: Field(ApiProperty({ format: 'uuid', example: '7c6b5a49-3827-4165-9d4c-3b2a19087f6e' })),
+  title: Field(ApiProperty({ maxLength: 200, example: 'Pagar la tarjeta de crédito' })),
+  description: Field(
+    ApiProperty({ type: String, nullable: true, maxLength: 1000, example: 'Revisar el resumen antes de pagar' }),
+  ),
+  start_time: Field(ApiProperty({ format: 'date-time', example: '2026-10-28T13:00:00.000Z' })),
+  end_time: Field(ApiProperty({ format: 'date-time', example: '2026-10-28T14:30:00.000Z' })),
+  actual_duration_minutes: Field(ApiProperty({ type: Number, minimum: 0, default: 0, example: 50 })),
+  category: Field(ApiProperty({ enum: TimeBlockCategory, example: TimeBlockCategory.WORK })),
+  task_id: Field(
+    ApiProperty({ type: String, format: 'uuid', nullable: true, example: '1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9' }),
+  ),
+  is_completed: Field(ApiProperty({ example: false })),
+  user_id: Field(ApiProperty({ format: 'uuid', example: '2f1e0d9c-8b7a-4695-8483-726150493827' })),
+};
 
 /**
  * Respuesta de las rutas del Cronograma. Espejo exacto de `TimeBlock` en openapi.yaml.
  */
 export class TimeBlockResponseDto {
-  @ApiProperty({ format: 'uuid', example: '7c6b5a49-3827-4165-9d4c-3b2a19087f6e' })
+  @fields.id
   id!: string;
 
-  @ApiProperty({ maxLength: 200, example: 'Pagar la tarjeta de crédito' })
+  @fields.title
   title!: string;
 
-  @ApiProperty({ type: String, nullable: true, maxLength: 1000, example: 'Revisar el resumen antes de pagar' })
+  @fields.description
   description!: string | null;
 
-  @ApiProperty({ format: 'date-time', example: '2026-10-28T13:00:00.000Z' })
+  @fields.start_time
   start_time!: string;
 
-  @ApiProperty({ format: 'date-time', example: '2026-10-28T14:30:00.000Z' })
+  @fields.end_time
   end_time!: string;
 
-  @ApiProperty({ type: Number, minimum: 0, default: 0, example: 50 })
+  @fields.actual_duration_minutes
   actual_duration_minutes!: number;
 
-  @ApiProperty({ enum: TimeBlockCategory, example: TimeBlockCategory.WORK })
+  @fields.category
   category!: TimeBlockCategory;
 
-  @ApiProperty({ type: String, format: 'uuid', nullable: true, example: '1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9' })
+  @fields.task_id
   task_id!: string | null;
 
-  @ApiProperty({ example: false })
+  @fields.is_completed
   is_completed!: boolean;
 
-  @ApiProperty({ format: 'uuid', example: '2f1e0d9c-8b7a-4695-8483-726150493827' })
+  @fields.user_id
   user_id!: string;
 
   static fromEntity(block: TimeBlock): TimeBlockResponseDto {

@@ -66,7 +66,9 @@ describe('buildDonutSlices', () => {
     const slices = buildDonutSlices([summary('a', 1000), summary('b', 0.001)])
     expect(dash(slices[1].dasharray)).toBe(0.5)
   })
+})
 
+describe('buildDonutSlices', () => {
   it('usa el color del sobre o la paleta de respaldo por posición', () => {
     const slices = buildDonutSlices([summary('a', 1, '#ff0000'), summary('b', 1, ''), summary('c', 1, 'rojo')])
     expect(slices.map((s) => s.color)).toEqual(['#ff0000', '#F59E0B', '#10B981'])

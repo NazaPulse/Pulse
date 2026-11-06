@@ -9,9 +9,20 @@ interface DonutRingProps {
   onActiveChange: (id: string | null) => void
 }
 
+/** Resaltado de una porción: la activa se ensancha y brilla; el resto se atenúa si hay una activa. */
+function sliceLook(slice: DonutSlice, activeId: string | null) {
+  const isActive = activeId === slice.category.category_id
+  const dimmed = activeId !== null && !isActive
+  return {
+    strokeWidth: isActive ? STROKE + 4 : STROKE,
+    style: { opacity: dimmed ? 0.3 : 1, filter: isActive ? `drop-shadow(0 0 5px ${slice.color})` : undefined },
+  }
+}
+
 function DonutSliceCircle({ slice, activeId, onActiveChange }: DonutRingProps & { slice: DonutSlice }) {
   const id = slice.category.category_id
-  const dimmed = activeId !== null && activeId !== id
+  const look = sliceLook(slice, activeId)
+  const toggle = () => onActiveChange(activeId === id ? null : id)
   return (
     <circle
       cx="80"
@@ -19,17 +30,14 @@ function DonutSliceCircle({ slice, activeId, onActiveChange }: DonutRingProps & 
       r={RADIUS}
       fill="none"
       stroke={slice.color}
-      strokeWidth={activeId === id ? STROKE + 4 : STROKE}
+      strokeWidth={look.strokeWidth}
       strokeDasharray={slice.dasharray}
       strokeDashoffset={slice.offset}
       className="cursor-pointer transition-all duration-200"
-      style={{
-        opacity: dimmed ? 0.3 : 1,
-        filter: activeId === id ? `drop-shadow(0 0 5px ${slice.color})` : undefined,
-      }}
+      style={look.style}
       onMouseEnter={() => onActiveChange(id)}
       onMouseLeave={() => onActiveChange(null)}
-      onClick={() => onActiveChange(activeId === id ? null : id)}
+      onClick={toggle}
     >
       <title>{`${slice.category.category_name}: ${currencyFormatter.format(slice.category.total_amount)}`}</title>
     </circle>

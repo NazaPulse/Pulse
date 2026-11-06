@@ -15,32 +15,15 @@ type TransactionFormModalProps = {
   onSubmit: (values: CreateTransactionDTO) => Promise<void>
 }
 
-export function TransactionFormModal({ accounts, categories, onClose, onSubmit }: TransactionFormModalProps) {
-  const form = useTransactionForm(accounts, onSubmit)
+type TransactionForm = ReturnType<typeof useTransactionForm>
+
+type TransactionFieldsProps = { form: TransactionForm; accounts: Account[]; categories: Category[] }
+
+/** Tipo de movimiento y monto. */
+function AmountFields({ form }: { form: TransactionForm }) {
   const { values, setField, submitting } = form
-
-  if (accounts.length === 0) {
-    return (
-      <Modal title="Nueva transacción" onClose={onClose}>
-        <p className="text-sm text-fg-soft">
-          Necesitás al menos una cuenta para registrar movimientos. Creá una desde la sección Cuentas.
-        </p>
-      </Modal>
-    )
-  }
-
   return (
-    <FormModal
-      title="Nueva transacción"
-      submitLabel="Registrar"
-      loadingLabel="Registrando…"
-      submitWidthClass="sm:w-44"
-      error={form.error}
-      submitting={submitting}
-      canSubmit={form.canSubmit}
-      onClose={onClose}
-      onSubmit={form.handleSubmit}
-    >
+    <>
       <TransactionTypeToggle value={values.type} disabled={submitting} onChange={(type) => setField('type', type)} />
 
       <Field
@@ -57,7 +40,15 @@ export function TransactionFormModal({ accounts, categories, onClose, onSubmit }
         error={amountError(values.amount)}
         required
       />
+    </>
+  )
+}
 
+/** Cuenta y sobre. */
+function SourceFields({ form, accounts, categories }: TransactionFieldsProps) {
+  const { values, setField, submitting } = form
+  return (
+    <>
       <TransactionAccountSelect
         accounts={accounts}
         value={values.accountId}
@@ -73,7 +64,15 @@ export function TransactionFormModal({ accounts, categories, onClose, onSubmit }
         isExpense={values.type === 'expense'}
         onChange={(id) => setField('categoryId', id)}
       />
+    </>
+  )
+}
 
+/** Fecha y descripción. */
+function DetailFields({ form }: { form: TransactionForm }) {
+  const { values, setField, submitting } = form
+  return (
+    <>
       <Field
         label="Fecha"
         type="date"
@@ -93,6 +92,39 @@ export function TransactionFormModal({ accounts, categories, onClose, onSubmit }
         disabled={submitting}
         maxLength={DESCRIPTION_MAX_LENGTH}
       />
+    </>
+  )
+}
+
+function NoAccountsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal title="Nueva transacción" onClose={onClose}>
+      <p className="text-sm text-fg-soft">
+        Necesitás al menos una cuenta para registrar movimientos. Creá una desde la sección Cuentas.
+      </p>
+    </Modal>
+  )
+}
+
+export function TransactionFormModal({ accounts, categories, onClose, onSubmit }: TransactionFormModalProps) {
+  const form = useTransactionForm(accounts, onSubmit)
+  if (accounts.length === 0) return <NoAccountsModal onClose={onClose} />
+
+  return (
+    <FormModal
+      title="Nueva transacción"
+      submitLabel="Registrar"
+      loadingLabel="Registrando…"
+      submitWidthClass="sm:w-44"
+      error={form.error}
+      submitting={form.submitting}
+      canSubmit={form.canSubmit}
+      onClose={onClose}
+      onSubmit={form.handleSubmit}
+    >
+      <AmountFields form={form} />
+      <SourceFields form={form} accounts={accounts} categories={categories} />
+      <DetailFields form={form} />
     </FormModal>
   )
 }

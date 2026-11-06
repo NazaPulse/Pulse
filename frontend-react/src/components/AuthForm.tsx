@@ -21,6 +21,32 @@ type AuthFormProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }
 
+type AuthFieldInputProps = {
+  field: AuthField
+  value: string
+  locked: boolean
+  setField(key: AuthFieldKey, value: string): void
+}
+
+function AuthFieldInput({ field, value, locked, setField }: AuthFieldInputProps) {
+  return (
+    <Field
+      label={field.label}
+      type={field.type}
+      name={field.name}
+      autoComplete={field.autocomplete}
+      placeholder={field.placeholder}
+      value={value}
+      onChange={(e) => setField(field.key, e.target.value)}
+      disabled={locked}
+      maxLength={field.maxLength}
+      hint={field.hint}
+      error={field.validate?.(value)}
+      required={field.required}
+    />
+  )
+}
+
 /** Formulario de acceso a partir de la especificación de campos compartida. */
 export function AuthForm(props: AuthFormProps) {
   const { fields, values, setField, copy, locked, error } = props
@@ -30,20 +56,12 @@ export function AuthForm(props: AuthFormProps) {
       {error ? <Alert variant="error">{error}</Alert> : null}
 
       {fields.map((field) => (
-        <Field
+        <AuthFieldInput
           key={field.key}
-          label={field.label}
-          type={field.type}
-          name={field.name}
-          autoComplete={field.autocomplete}
-          placeholder={field.placeholder}
+          field={field}
           value={values[field.key] ?? ''}
-          onChange={(e) => setField(field.key, e.target.value)}
-          disabled={locked}
-          maxLength={field.maxLength}
-          hint={field.hint}
-          error={field.validate?.(values[field.key] ?? '')}
-          required={field.required}
+          locked={locked}
+          setField={setField}
         />
       ))}
 

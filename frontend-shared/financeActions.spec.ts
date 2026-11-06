@@ -60,6 +60,11 @@ describe('altas, ediciones y bajas', () => {
       ['updateCategory', 'c1', values],
     ])
   })
+})
+
+describe('altas, ediciones y bajas', () => {
+  const account = { id: 'a1' } as never
+  const category = { id: 'c1' } as never
 
   it('removeTarget elimina la cuenta o el sobre indicado', async () => {
     const { client, calls } = fakeClient()

@@ -2,16 +2,14 @@
 `/api/schedule` y `/api/schedule/{id}` (Issue #23): estructura `TimeBlock`,
 `start_time < end_time` (400), JWT obligatorio y aislamiento por usuario.
 """
+from tests.helpers import auth_headers, pick
+
 BLOCK_KEYS = {
     "id", "title", "description", "start_time", "end_time",
     "actual_duration_minutes", "category", "task_id", "is_completed", "user_id",
 }
 START = "2026-10-28T13:00:00.000Z"
 END = "2026-10-28T14:30:00.000Z"
-
-
-def auth_headers(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
 
 
 def create_block(client, token, **over):
@@ -31,14 +29,16 @@ def test_create_block_applies_defaults_and_exact_shape(client, token_for):
     assert r.status_code == 201
     body = r.json()
     assert set(body) == BLOCK_KEYS
-    assert body["start_time"] == START
-    assert body["end_time"] == END
-    assert body["actual_duration_minutes"] == 0
-    assert body["category"] == "other"
-    assert body["task_id"] is None
-    assert body["is_completed"] is False
-    assert body["description"] is None
-    assert body["user_id"] == str(uid)
+    assert {key: body[key] for key in BLOCK_KEYS - {"id", "title"}} == {
+        "start_time": START,
+        "end_time": END,
+        "actual_duration_minutes": 0,
+        "category": "other",
+        "task_id": None,
+        "is_completed": False,
+        "description": None,
+        "user_id": str(uid),
+    }
 
 
 def test_create_block_rejects_inverted_or_empty_range(client, token_for):
@@ -120,16 +120,16 @@ def test_patch_resizes_and_validates_merged_range(client, token_for):
     r = client.patch(url, json={"end_time": "2026-10-28T16:00:00.000Z", "actual_duration_minutes": 50},
                      headers=auth_headers(token))
     assert r.status_code == 200
-    assert r.json()["end_time"] == "2026-10-28T16:00:00.000Z"
-    assert r.json()["start_time"] == START
-    assert r.json()["actual_duration_minutes"] == 50
+    assert pick(r.json(), "start_time", "end_time", "actual_duration_minutes") == {
+        "start_time": START,
+        "end_time": "2026-10-28T16:00:00.000Z",
+        "actual_duration_minutes": 50,
+    }
 
     r = client.patch(url, json={"start_time": "2026-10-28T17:00:00.000Z"}, headers=auth_headers(token))
-    assert r.status_code == 400
-    assert r.json()["message"] == "start_time debe ser anterior a end_time."
+    assert (r.status_code, r.json()["message"]) == (400, "start_time debe ser anterior a end_time.")
 
-    r = client.patch(url, json={}, headers=auth_headers(token))
-    assert r.status_code == 400
+    assert client.patch(url, json={}, headers=auth_headers(token)).status_code == 400
 
 
 def test_other_user_cannot_patch_or_delete(client, token_for):
@@ -138,8 +138,11 @@ def test_other_user_cannot_patch_or_delete(client, token_for):
     block = create_block(client, owner).json()
     url = f"/api/schedule/{block['id']}"
 
-    assert client.patch(url, json={"is_completed": True}, headers=auth_headers(other)).status_code == 404
-    assert client.delete(url, headers=auth_headers(other)).status_code == 404
-    assert client.delete("/api/schedule/no-es-uuid", headers=auth_headers(owner)).status_code == 404
-    assert client.delete(url, headers=auth_headers(owner)).status_code == 204
+    statuses = [
+        client.patch(url, json={"is_completed": True}, headers=auth_headers(other)).status_code,
+        client.delete(url, headers=auth_headers(other)).status_code,
+        client.delete("/api/schedule/no-es-uuid", headers=auth_headers(owner)).status_code,
+        client.delete(url, headers=auth_headers(owner)).status_code,
+    ]
+    assert statuses == [404, 404, 404, 204]
     assert client.get("/api/schedule", headers=auth_headers(owner)).json() == []

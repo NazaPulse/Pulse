@@ -25,17 +25,27 @@ from app.core.config import get_settings
 logger = logging.getLogger("pulse.hashing")
 
 
+def _build_password_hasher() -> PasswordHasher:
+    """Argon2id (variante híbrida obligatoria) con los parámetros de la configuración:
+    t = 2, m = 19456 KiB, p = 1 por defecto."""
+    s = get_settings()
+    return PasswordHasher(
+        time_cost=s.argon2_time_cost,
+        memory_cost=s.argon2_memory_cost,
+        parallelism=s.argon2_parallelism,
+        hash_len=32,
+        salt_len=16,
+        type=Type.ID,
+    )
+
+
+# Errores de un hash almacenado corrupto o con otro formato (distintos de un mismatch).
+_INVALID_HASH_ERRORS = (VerificationError, InvalidHashError)
+
+
 class Argon2Hasher:
     def __init__(self) -> None:
-        s = get_settings()
-        self._ph = PasswordHasher(
-            time_cost=s.argon2_time_cost,       # t = 2
-            memory_cost=s.argon2_memory_cost,   # m = 19456 KiB
-            parallelism=s.argon2_parallelism,   # p = 1
-            hash_len=32,
-            salt_len=16,
-            type=Type.ID,                       # <- Argon2id (variante híbrida obligatoria)
-        )
+        self._ph = _build_password_hasher()
 
     def hash(self, plain: str) -> str:
         """Deriva un hash PHC a partir de una contraseña en texto plano."""
@@ -47,7 +57,7 @@ class Argon2Hasher:
             return self._ph.verify(hashed, plain)
         except VerifyMismatchError:
             return False
-        except (VerificationError, InvalidHashError) as exc:
+        except _INVALID_HASH_ERRORS as exc:
             logger.warning("verify() falló para un hash almacenado: %s", exc)
             return False
 
@@ -55,7 +65,8 @@ class Argon2Hasher:
         """`True` si el hash quedó por debajo de la política vigente."""
         try:
             return self._ph.check_needs_rehash(hashed)
-        except Exception:  # noqa: BLE001 - hash con formato desconocido => forzar rehash
+        except Exception:  # noqa: BLE001
+            # hash con formato desconocido: forzar rehash
             return True
 
 

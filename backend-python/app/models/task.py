@@ -6,19 +6,18 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.session import Base
-from app.models.base import IdMixin, OwnedMixin, TimestampMixin
+from app.models.base import OwnedRecord, tz_datetime_column
 
 
-class Task(IdMixin, OwnedMixin, TimestampMixin, Base):
+class Task(OwnedRecord):
     __tablename__ = "tasks"
 
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     priority: Mapped[str] = mapped_column(String(20), nullable=False, server_default="medium")
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
-    due_date: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    due_date: Mapped[dt.datetime | None] = tz_datetime_column(nullable=True)
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)

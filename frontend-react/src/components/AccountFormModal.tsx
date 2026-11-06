@@ -11,20 +11,12 @@ type AccountFormModalProps = {
   onSubmit: (values: AccountCreateRequest) => Promise<void>
 }
 
-export function AccountFormModal({ account, onClose, onSubmit }: AccountFormModalProps) {
-  const form = useAccountForm(account, onSubmit)
-  const { values, setField, submitting, isEditing } = form
+type AccountForm = ReturnType<typeof useAccountForm>
 
+function AccountNameField({ form }: { form: AccountForm }) {
+  const { values, setField, submitting } = form
   return (
-    <FormModal
-      title={isEditing ? 'Editar cuenta' : 'Nueva cuenta'}
-      submitLabel={isEditing ? 'Guardar cambios' : 'Crear cuenta'}
-      error={form.error}
-      submitting={submitting}
-      canSubmit={form.canSubmit}
-      onClose={onClose}
-      onSubmit={form.handleSubmit}
-    >
+    <>
       <Field
         label="Nombre"
         name="name"
@@ -35,7 +27,14 @@ export function AccountFormModal({ account, onClose, onSubmit }: AccountFormModa
         maxLength={100}
         required
       />
+    </>
+  )
+}
 
+function AccountTypeField({ form }: { form: AccountForm }) {
+  const { values, setField, submitting } = form
+  return (
+    <>
       <Select
         label="Tipo de cuenta"
         value={values.type}
@@ -48,7 +47,23 @@ export function AccountFormModal({ account, onClose, onSubmit }: AccountFormModa
           </option>
         ))}
       </Select>
+    </>
+  )
+}
 
+function AccountIdentityFields({ form }: { form: AccountForm }) {
+  return (
+    <>
+      <AccountNameField form={form} />
+      <AccountTypeField form={form} />
+    </>
+  )
+}
+
+function InitialBalanceField({ form }: { form: AccountForm }) {
+  const { values, setField, submitting, isEditing } = form
+  return (
+    <>
       {!isEditing ? (
         <Field
           label="Saldo inicial"
@@ -62,6 +77,34 @@ export function AccountFormModal({ account, onClose, onSubmit }: AccountFormModa
           hint="Se usa como base para calcular el saldo de la cuenta."
         />
       ) : null}
+    </>
+  )
+}
+
+function AccountFields({ form }: { form: AccountForm }) {
+  return (
+    <>
+      <AccountIdentityFields form={form} />
+      <InitialBalanceField form={form} />
+    </>
+  )
+}
+
+export function AccountFormModal({ account, onClose, onSubmit }: AccountFormModalProps) {
+  const form = useAccountForm(account, onSubmit)
+  const { isEditing } = form
+
+  return (
+    <FormModal
+      title={isEditing ? 'Editar cuenta' : 'Nueva cuenta'}
+      submitLabel={isEditing ? 'Guardar cambios' : 'Crear cuenta'}
+      error={form.error}
+      submitting={form.submitting}
+      canSubmit={form.canSubmit}
+      onClose={onClose}
+      onSubmit={form.handleSubmit}
+    >
+      <AccountFields form={form} />
     </FormModal>
   )
 }

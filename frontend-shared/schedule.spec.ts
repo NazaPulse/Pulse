@@ -2,6 +2,7 @@ import {
   DAY_MINUTES,
   DEFAULT_PREFS,
   autoSchedule,
+  planningWindow,
   autoScheduleMessage,
   blockFormError,
   blockFormValues,
@@ -75,7 +76,9 @@ describe('schedule', () => {
     ]
     expect([...findConflicts(blocks)].sort()).toEqual(['b', 'c'])
   })
+})
 
+describe('schedule', () => {
   it('apila en carriles distintos los bloques superpuestos', () => {
     const { lanes, laneCount } = assignLanes([
       block('a', at(9), at(11)),
@@ -87,7 +90,9 @@ describe('schedule', () => {
     expect(lanes.get('b')).toBe(1)
     expect(lanes.get('c')).toBe(0)
   })
+})
 
+describe('schedule', () => {
   it('redimensiona con paso de 15 min y respeta la duración mínima y los límites del día', () => {
     const span = { start: 600, end: 660 }
     expect(dragSpan(span, 'end', 37)).toEqual({ start: 600, end: 690 })
@@ -111,7 +116,9 @@ describe('schedule', () => {
       end_time: at(10, 0),
     })
   })
+})
 
+describe('schedule', () => {
   it('compara minutos reales contra el plan', () => {
     const b = block('a', at(9), at(10), { actual_duration_minutes: 30 })
     expect(actualRatio(b)).toBe(0.5)
@@ -125,7 +132,9 @@ describe('schedule', () => {
     expect(nowMinute(new Date(2026, 9, 29, 0, 0).getTime(), DAY)).toBeNull()
     expect(formatMinute(DAY_MINUTES)).toBe('24:00')
   })
+})
 
+describe('schedule', () => {
   it('persiste y limpia el objetivo de foco del Pomodoro', () => {
     const data = new Map<string, string>()
     const storage = {
@@ -208,7 +217,7 @@ describe('planificación inteligente', () => {
       task('hecha', { status: 'completed' }),
     ]
     const blocks = [block('ya-b', at(9), at(10), { task_id: 'ya' })]
-    const { planned, skipped } = autoSchedule(tasks, blocks, DAY, { start: 540, end: 780 }, null)
+    const { planned, skipped } = autoSchedule(tasks, blocks, DAY, planningWindow({ start: 540, end: 780 }, null))
     expect(planned.map((p) => [p.task_id, p.start_time, p.end_time])).toEqual([
       ['alta-pronto', at(10), at(11, 30)],
       ['alta-tarde', at(11, 30), at(12, 30)],
@@ -216,9 +225,11 @@ describe('planificación inteligente', () => {
     expect(skipped.map((t) => t.id)).toEqual(['baja'])
     expect(autoScheduleMessage(2, 1)).toBe('2 tareas agendadas; 1 no entraron en el horario laboral.')
   })
+})
 
+describe('planificación inteligente', () => {
   it('arranca desde ahora cuando el día es hoy', () => {
-    const { planned } = autoSchedule([task('t')], [], DAY, { start: 540, end: 1080 }, 700)
+    const { planned } = autoSchedule([task('t')], [], DAY, planningWindow({ start: 540, end: 1080 }, 700))
     expect(planned[0].start_time).toBe(at(11, 45))
   })
 
@@ -264,7 +275,9 @@ describe('copiar día, resumen y semana', () => {
     ])
     expect(summary.adherence).toBe(50)
   })
+})
 
+describe('copiar día, resumen y semana', () => {
   it('la semana empieza el lunes', () => {
     expect(weekStart(DAY)).toEqual(new Date(2026, 9, 26))
     expect(weekDays(DAY)).toHaveLength(7)

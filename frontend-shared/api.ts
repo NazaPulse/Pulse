@@ -148,11 +148,13 @@ function isHttpError(error: unknown): error is HttpErrorLike {
   )
 }
 
+const joinedMessages = (messages: string[]) => (messages.length > 0 ? messages.join(' · ') : null)
+
+const textMessage = (message: unknown) => (typeof message === 'string' && message.trim() ? message : null)
+
 function messageFromBody(data: Partial<ErrorResponse> | undefined): string | null {
   const msg = data?.message
-  if (Array.isArray(msg) && msg.length > 0) return msg.join(' · ')
-  if (typeof msg === 'string' && msg.trim()) return msg
-  return null
+  return Array.isArray(msg) ? joinedMessages(msg) : textMessage(msg)
 }
 
 function messageFromResponse(response: { status: number; data?: unknown }): string {

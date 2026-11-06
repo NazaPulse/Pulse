@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import type { Ref } from 'vue'
 
 import * as pomodoro from '@shared/pomodoro'
 import type { PomodoroMode, TimerState } from '@shared/pomodoro'
@@ -8,15 +9,10 @@ export interface UsePomodoroOptions {
   onComplete?: (finished: PomodoroMode, next: PomodoroMode) => void
 }
 
-export function usePomodoro({ onComplete }: UsePomodoroOptions = {}) {
-  const state = ref<TimerState>(pomodoro.loadTimerState())
-  const now = ref(Date.now())
-  const running = computed(() => pomodoro.isRunning(state.value))
-  const remainingMs = computed(() => pomodoro.remainingMs(state.value, now.value))
+type TimerRefs = { state: Ref<TimerState>; now: Ref<number> }
 
-  watch(state, (value) => pomodoro.saveTimerState(value), { deep: true })
-
-  // El intervalo solo refresca `now`; su frecuencia real no afecta al cálculo.
+/** Mientras corre, refresca `now` (también al volver a la pestaña); su frecuencia real no afecta al cálculo. */
+function useTicking(running: Ref<boolean>, now: Ref<number>) {
   const sync = () => {
     now.value = Date.now()
   }
@@ -39,24 +35,28 @@ export function usePomodoro({ onComplete }: UsePomodoroOptions = {}) {
     { immediate: true },
   )
   onBeforeUnmount(stopTicking)
+}
 
+/** Al llegar a 0 se cierra el bloque (una sola vez) y se pasa al siguiente modo. */
+function useCompletion(timer: TimerRefs & { running: Ref<boolean>; remainingMs: Ref<number> }, onComplete: UsePomodoroOptions['onComplete']) {
   watch(
-    remainingMs,
+    timer.remainingMs,
     (remaining) => {
-      if (!running.value || remaining > 0) return
-      const done = pomodoro.completeBlock(state.value)
-      state.value = done.state
+      if (!timer.running.value || remaining > 0) return
+      const done = pomodoro.completeBlock(timer.state.value)
+      timer.state.value = done.state
       onComplete?.(done.finished, done.next)
     },
     { immediate: true },
   )
+}
 
+function timerApi({ state, now }: TimerRefs, running: Ref<boolean>, remainingMs: Ref<number>) {
   function apply(change: (current: TimerState, at: number) => TimerState) {
     const at = Date.now()
     now.value = at
     state.value = change(state.value, at)
   }
-
   return {
     mode: computed(() => state.value.mode),
     running,
@@ -71,6 +71,19 @@ export function usePomodoro({ onComplete }: UsePomodoroOptions = {}) {
     reset: () => apply(pomodoro.resetTimer),
     selectMode: (mode: PomodoroMode) => apply((current) => pomodoro.selectTimerMode(current, mode)),
   }
+}
+
+export function usePomodoro({ onComplete }: UsePomodoroOptions = {}) {
+  const state = ref<TimerState>(pomodoro.loadTimerState())
+  const now = ref(Date.now())
+  const running = computed(() => pomodoro.isRunning(state.value))
+  const remainingMs = computed(() => pomodoro.remainingMs(state.value, now.value))
+
+  watch(state, (value) => pomodoro.saveTimerState(value), { deep: true })
+  useTicking(running, now)
+  useCompletion({ state, now, running, remainingMs }, onComplete)
+
+  return timerApi({ state, now }, running, remainingMs)
 }
 
 export type PomodoroTimer = ReturnType<typeof usePomodoro>

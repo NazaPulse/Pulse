@@ -52,8 +52,14 @@ def parse_iso_datetime(value: str) -> dt.datetime:
     return parsed
 
 
+def as_number(v: Any) -> int | float | None:
+    """`v` si es un número JSON (los booleanos no cuentan); si no, `None`."""
+    is_number = isinstance(v, (int, float)) and not isinstance(v, bool)
+    return v if is_number else None
+
+
 def _validate_amount(v: Any) -> float:
-    if isinstance(v, bool) or not isinstance(v, (int, float)):
+    if as_number(v) is None:
         raise _fail("amount_number", "amount must be a number conforming to the specified constraints")
     if v <= 0:
         raise _fail("amount_positive", "amount must be greater than 0")
@@ -93,6 +99,16 @@ def _validate_description(v: Any) -> str | None:
     return v
 
 
+def _validate_category(dto: Any) -> Any:
+    """`category_id`: en egresos siempre se valida (y por lo tanto es obligatorio); en
+    ingresos solo si viene informado. Igual que `@ValidateIf` en Node, que compara
+    contra `undefined`: un `null` explícito también se valida."""
+    must_validate = dto.type == TransactionType.EXPENSE or "category_id" in dto.model_fields_set
+    if must_validate and not is_uuid(dto.category_id):
+        raise _fail("category_id_uuid", "category_id must be a UUID (required for expense)")
+    return dto
+
+
 class TransactionCreateRequest(BaseModel):
     """`TransactionCreateRequest` — cuerpo de `POST /api/transactions`.
 
@@ -109,17 +125,7 @@ class TransactionCreateRequest(BaseModel):
     date: Annotated[Any, AfterValidator(_validate_date)]
     description: Annotated[Any, AfterValidator(_validate_description)] = None
 
-    @model_validator(mode="after")
-    def _category_rule(self) -> "TransactionCreateRequest":
-        # En egresos siempre se valida (y por lo tanto es obligatorio); en
-        # ingresos solo si viene informado. Igual que `@ValidateIf` en Node,
-        # que compara contra `undefined`: un `null` explícito también se valida.
-        if self.type == TransactionType.EXPENSE or "category_id" in self.model_fields_set:
-            if not is_uuid(self.category_id):
-                raise _fail(
-                    "category_id_uuid", "category_id must be a UUID (required for expense)"
-                )
-        return self
+    _category_rule = model_validator(mode="after")(lambda self: _validate_category(self))
 
 
 class Transaction(BaseModel):
