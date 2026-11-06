@@ -144,7 +144,41 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 _Cumple **todos** los criterios del semáforo: no hay nada que arreglar para aprobar. El siguiente objetivo es sostenerlo y mejorar duplicación y diseño._
 
-## 6. Anexo: dónde mirar
+## 6. Actividad en clase (miércoles y viernes)
+
+> Se consideran las **23 clases** del período (miércoles y viernes; Nov 4 y 6 quedan afuera porque el calendario las marca sin clase). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
+
+### Nazareno Cruz Moreno
+
+**13/23 clases con actividad** · 30 commits · 26 merges
+
+| Fecha | Marca | Repositorios | Commits / merges |
+|---|:--:|---|--:|
+| 2026-08-14 | No | sin actividad | 0 / 0 |
+| 2026-08-19 | No | sin actividad | 0 / 0 |
+| 2026-08-21 | No | sin actividad | 0 / 0 |
+| 2026-08-26 | No | sin actividad | 0 / 0 |
+| 2026-08-28 | **Sí** | Pulse | 2 / 2 |
+| 2026-09-02 | **Sí** | Pulse | 4 / 2 |
+| 2026-09-04 | **Sí** | Pulse | 3 / 3 |
+| 2026-09-09 | **Sí** | Pulse | 4 / 2 |
+| 2026-09-11 | No | sin actividad | 0 / 0 |
+| 2026-09-16 | No | sin actividad | 0 / 0 |
+| 2026-09-18 | No | sin actividad | 0 / 0 |
+| 2026-09-23 | **Sí** | Pulse | 2 / 2 |
+| 2026-09-25 | No | sin actividad | 0 / 0 |
+| 2026-09-30 | **Sí** | Pulse | 3 / 3 |
+| 2026-10-02 | No | sin actividad | 0 / 0 |
+| 2026-10-07 | **Sí** | Pulse | 4 / 4 |
+| 2026-10-09 | **Sí** | Pulse | 2 / 2 |
+| 2026-10-14 | **Sí** | Pulse | 2 / 0 |
+| 2026-10-16 | **Sí** | Pulse | 1 / 4 |
+| 2026-10-21 | No | sin actividad | 0 / 0 |
+| 2026-10-23 | **Sí** | Pulse | 0 / 1 |
+| 2026-10-28 | **Sí** | Pulse | 1 / 1 |
+| 2026-10-30 | **Sí** | Pulse | 2 / 0 |
+
+## 7. Anexo: dónde mirar
 
 _No hay criterios en rojo con archivos asociados._
 
