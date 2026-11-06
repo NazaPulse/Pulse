@@ -18,6 +18,7 @@
 | Tests (archivos) | 36 |
 | Cobertura de líneas | 82.5% (mínimo 80%) |
 | Capas detectadas | presentacion, logica, datos, vistas, servicios, estado |
+| Pushes directos a `main` (sin PR) | 0 |
 
 > **Aprobado** exige las compuertas críticas (**SEC**, **SQL**, **capas**, **índice ≥ 50** y **cobertura ≥ 80 %** cuando aplica) y tolera hasta **3 criterios en rojo** (12/15). No es una nota: sirve para ordenar y priorizar la revisión.
 
