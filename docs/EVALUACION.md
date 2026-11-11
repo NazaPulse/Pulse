@@ -13,8 +13,8 @@
 | Índice de calidad de servicios | **100/100** (mínimo 50) |
 | Criterios cumplidos | **16/16** |
 | Aprobado (semáforo) | **SI** |
-| Código (LOC) | 18,783 |
-| Archivos de código | 355 |
+| Código (LOC) | 18,998 |
+| Archivos de código | 356 |
 | Tests (archivos) | 36 |
 | Cobertura de líneas | 82.5% (mínimo 80%) |
 | Capas detectadas | presentacion, logica, datos, vistas, servicios, estado |
@@ -26,7 +26,7 @@
 
 | Autor | Commits | Código (LOC) | Tests (LOC) | Docs (LOC) | Días activos | % del código |
 |---|---:|---:|---:|---:|---:|---:|
-| Nazareno Cruz Moreno | 33 | 22,350 | 4,412 | 432 | 17 | 100% |
+| Nazareno Cruz Moreno | 34 | 22,604 | 4,412 | 432 | 18 | 100% |
 
 > _El LOC de autoría lo calcula RepoSense sobre el historial y puede diferir del LOC de código del análisis de calidad (que mira solo el estado de `main`)._
 
@@ -36,7 +36,7 @@
 
 | Alumno | Sesiones | Cumplimiento | Pausa | Recencia | IC | Nivel | Para subir de nivel |
 |---|--:|--:|--:|--:|--:|--|--|
-| Nazareno Cruz Moreno | 13 | 51% | 14 d | 14% | **35** | No aprueba | Recencia 14% (mín. 50%) |
+| Nazareno Cruz Moreno | 14 | 54% | 14 d | 100% | **49** | Aprueba | Cumplimiento 54% (mín. 100%); Pausa 14 d (máx. 5 d) |
 
 > Para aprobar el IC: **2 sesiones por semana** sostenidas, sin pausas mayores a **10 días** y con actividad en las **últimas 2 semanas**. Se excluyen merges, bots y al docente. Zona horaria UTC-3.
 
@@ -54,7 +54,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Porcentaje de bloques de código repetidos (similitud) en el repositorio.
 - **Por qué importa:** Cada copia se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **5.6%** de duplicación _(máximo 15%)_
+- **Tu resultado:** **5.5%** de duplicación _(máximo 15%)_
 
 ### 3. Secretos hardcodeados (SEC) — OK
 
@@ -108,7 +108,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Complejidad ciclomática: cantidad de caminos posibles dentro de una función (condicionales, bucles, casos).
 - **Por qué importa:** Muchos caminos = difícil de seguir y de probar; suelen esconderse casos sin cubrir.
-- **Tu resultado:** **3** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 18783 LOC))_
+- **Tu resultado:** **3** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 18998 LOC))_
 
 ### 12. Funciones/métodos largos o con muchos parámetros (Tam) — OK
 
@@ -146,11 +146,11 @@ _Cumple **todos** los criterios del semáforo: no hay nada que arreglar para apr
 
 ## 6. Actividad en clase (miércoles y viernes)
 
-> Se consideran las **23 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
+> Se consideran las **26 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
 
 ### Nazareno Cruz Moreno
 
-**13/23 clases con actividad** · 30 commits · 26 merges
+**15/26 clases con actividad** · 32 commits · 29 merges
 
 | Fecha | Actividad | Repositorios | Commits / merges |
 |---|:--:|---|--:|
@@ -177,6 +177,9 @@ _Cumple **todos** los criterios del semáforo: no hay nada que arreglar para apr
 | 2026-10-23 | **Sí** | Pulse | 0 / 1 |
 | 2026-10-28 | **Sí** | Pulse | 1 / 1 |
 | 2026-10-30 | **Sí** | Pulse | 2 / 0 |
+| 2026-11-04 | No | sin actividad | 0 / 0 |
+| 2026-11-06 | **Sí** | Pulse | 1 / 2 |
+| 2026-11-11 | **Sí** | Pulse | 1 / 1 |
 
 ## 7. Anexo: dónde mirar
 
