@@ -3,7 +3,7 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación III (RepoSense + análisis de calidad + constancia). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-11-14.
+> Generado: 2026-11-16.
 
 ## 1. Veredicto
 
@@ -36,7 +36,7 @@
 
 | Alumno | Sesiones | Cumplimiento | Pausa | Recencia | IC | Nivel | Para subir de nivel |
 |---|--:|--:|--:|--:|--:|--|--|
-| Nazareno Cruz Moreno | 14 | 53% | 14 d | 86% | **47** | Aprueba | Cumplimiento 53% (mín. 100%); Pausa 14 d (máx. 5 d) |
+| Nazareno Cruz Moreno | 15 | 55% | 14 d | 93% | **49** | Aprueba | Cumplimiento 55% (mín. 100%); Pausa 14 d (máx. 5 d) |
 
 > Para aprobar el IC: **2 sesiones por semana** sostenidas, sin pausas mayores a **10 días** y con actividad en las **últimas 2 semanas**. Se excluyen merges, bots y al docente. Zona horaria UTC-3.
 
@@ -150,7 +150,7 @@ _Cumple **todos** los criterios del semáforo: no hay nada que arreglar para apr
 
 ### Nazareno Cruz Moreno
 
-**15/27 clases con actividad** · total del período: 32 commits · 29 merges
+**15/27 clases con actividad** · total del período: 34 commits · 29 merges
 
 | Fecha | Actividad | Repositorios | Commits / merges |
 |---|:--:|---|--:|
@@ -182,13 +182,16 @@ _Cumple **todos** los criterios del semáforo: no hay nada que arreglar para apr
 | 2026-11-11 | **Sí** | Pulse | 1 / 1 |
 | 2026-11-13 | No | sin actividad | 0 / 0 |
 
-**Fuera de clase:** 3 fecha(s) con actividad · 3 commits · 1 merges
+**Fuera de clase:** 4 fecha(s) con actividad · 5 commits · 1 merges
 
 | Fecha | Repositorios | Commits / merges |
 |---|---|--:|
 | 2026-08-25 | Pulse | 1 / 0 |
 | 2026-10-20 | Pulse | 1 / 0 |
 | 2026-10-22 | Pulse | 1 / 1 |
+| 2026-11-15 | adopcion-animal-prog3/B-Profesional, adopcion-animal-prog3/F-profesional | 2 / 0 |
+
+> Incluye trabajo en repositorios de otra organización.
 
 ## 7. Anexo: dónde mirar
 
