@@ -3,7 +3,7 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación III (RepoSense + análisis de calidad + constancia). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-11-19.
+> Generado: 2026-11-20.
 
 ## 1. Veredicto
 
@@ -36,7 +36,7 @@
 
 | Alumno | Sesiones | Cumplimiento | Pausa | Recencia | IC | Nivel | Para subir de nivel |
 |---|--:|--:|--:|--:|--:|--|--|
-| Nazareno Cruz Moreno | 15 | 54% | 14 d | 71% | **45** | Aprueba | Cumplimiento 54% (mín. 100%); Pausa 14 d (máx. 5 d); Recencia 71% (mín. 75%) |
+| Nazareno Cruz Moreno | 15 | 53% | 14 d | 64% | **43** | Aprueba | Cumplimiento 53% (mín. 100%); Pausa 14 d (máx. 5 d); Recencia 64% (mín. 75%) |
 
 > Para aprobar el IC: **2 sesiones por semana** sostenidas, sin pausas mayores a **10 días** y con actividad en las **últimas 2 semanas**. Se excluyen merges, bots y al docente. Zona horaria UTC-3.
 
@@ -146,11 +146,11 @@ _Cumple **todos** los criterios del semáforo: no hay nada que arreglar para apr
 
 ## 6. Actividad en clase y fuera de clase
 
-> Se consideran las **28 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). Para cada alumno se muestra la actividad **en cada clase** y también la actividad **fuera de los días de clase** (fines de semana u otros días). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
+> Se consideran las **29 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). Para cada alumno se muestra la actividad **en cada clase** y también la actividad **fuera de los días de clase** (fines de semana u otros días). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
 
 ### Nazareno Cruz Moreno
 
-**15/28 clases con actividad** · total del período: 34 commits · 29 merges
+**15/29 clases con actividad** · total del período: 34 commits · 29 merges
 
 | Fecha | Actividad | Repositorios | Commits / merges |
 |---|:--:|---|--:|
@@ -182,6 +182,7 @@ _Cumple **todos** los criterios del semáforo: no hay nada que arreglar para apr
 | 2026-11-11 | **Sí** | Pulse | 1 / 1 |
 | 2026-11-13 | No | sin actividad | 0 / 0 |
 | 2026-11-18 | No | sin actividad | 0 / 0 |
+| 2026-11-20 | No | sin actividad | 0 / 0 |
 
 **Fuera de clase:** 4 fecha(s) con actividad · 5 commits · 1 merges
 
